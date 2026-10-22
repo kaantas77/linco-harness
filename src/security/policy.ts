@@ -26,6 +26,7 @@ export function approvalHash(toolName: string, args: unknown): string {
 }
 
 function riskFor(toolName: string): Risk {
+  if (toolName.startsWith("browser_")) return "network";
   switch (toolName) {
     case "fs_write":
     case "fs_edit":

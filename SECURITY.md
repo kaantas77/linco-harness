@@ -20,6 +20,8 @@ Bu dosya faz 1 kodunun üretimde açılmasını engelleyen dört maddeyi ayrı a
 
 Üretim engeli: model, çalışma alanındaki bir araçla iç ağa ve bulut metadata adreslerinin bu listedeki üçü dışındaki hallerine istek atabilir.
 
+Tarayıcı navigasyonu (`src/browser/navigation-policy.ts`) ayrı bir kontrol kullanır. Loopback açıktır. `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, metadata adları ve sayısal hostlar reddedilir. Her istek Playwright route'undan da geçer. Bu, yönlendirme sonrası adres ve DNS yeniden bağlamayı kapatan bir üretim sınırı değildir. Tarayıcı bu haliyle yerel geliştirme içindir.
+
 ## Kabuk izolasyonu yok
 
 `shell_exec` `LocalComputerProvider` üzerinden `spawn(..., { shell: true })` çalıştırır. Bu, Unix'te `sh -c` demektir. Sınır şunlardır: çalışma dizini, `HOME` ve `TMPDIR` çalışma alanı, ortam listesinde API anahtarının olmaması, `src/security/policy.ts` içindeki düzenli ifadeler.

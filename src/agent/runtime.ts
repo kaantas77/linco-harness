@@ -12,7 +12,8 @@ import { compactForRequest } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
-import { createTools } from "../tools/create-tools.js";
+import { closeTaskBrowser } from "../browser/session.js";
+import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
 import { HttpBrowserProvider } from "../tools/http-browser.js";
 import type { ToolHost } from "../tools/host.js";
 import { LocalComputerProvider } from "../tools/local-computer.js";
@@ -76,7 +77,7 @@ export class Harness {
   }
 
   createSession(userId: string) {
-    return this.db.createSession(userId, this.skills);
+    return this.db.createSession(userId, this.skills, browserPrompt(this.skills.list()));
   }
 
   async submit(
@@ -133,7 +134,7 @@ export class Harness {
     schedule?: string;
     everyMs?: number;
   }): Automation {
-    const session = this.db.createSession(input.userId, this.skills);
+    const session = this.createSession(input.userId);
     const webhookToken = input.kind === "webhook" ? createId("hook") : null;
     let schedule: string | null = null;
     let nextRunAt: string | null = null;
@@ -257,7 +258,7 @@ export class Harness {
           run.waitingApproval = true;
         },
       };
-      const tools = createTools(host);
+      const tools = toolsForPrompt(host, session.systemPrompt);
       const transcript = this.db.getTranscript(session.id);
       const budget = { turns: 0 };
       agent = new Agent({
@@ -364,6 +365,7 @@ export class Harness {
         this.notify(task, "Görev hata verdi", message);
       }
     } finally {
+      await closeTaskBrowser(task.id);
       this.aborts.delete(task.id);
     }
   }

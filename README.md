@@ -2,7 +2,7 @@
 
 Linco Harness, Pi Agent döngüsünün üstündeki backend'dir. Model çağrısını ve araç yürütmesini Pi yapar. Oturum, worker havuzu, araç politikası, bellek, skill, otomasyon ve maliyet kaydı Linco'ya aittir.
 
-Bu depo faz 1'dir. Hermes'in yerine geçecek çalışan çekirdek burada kurulur. DeepSeek Harness, Hermes ve NeMo kaynakları yan klasörlerde referans olarak durur; bu deponun içine kopyalanmadı.
+Bu depo faz 3'tedir. Yeni oturumlar Playwright profilini `workspace/.linco/browser` altında açar. `web_fetch` durur. Eski oturumlar v1 araç listesinde kalır.
 
 ## Çalıştırma
 
@@ -10,6 +10,7 @@ Node 22.19 veya üstü gerekir.
 
 ```bash
 npm install
+npx playwright install chromium
 npm test
 npm run build
 DEEPSEEK_API_KEY=... node dist/cli.js serve
