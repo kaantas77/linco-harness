@@ -44,11 +44,13 @@ Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ expe
 
 ## Test
 
-`npm test`: 20 test geçti. Faz 1'deki 15 test duruyor. Yeni 5 test ölçüm matematiğini, anahtarsız raporun canlı sayılmamasını, dosya notlarını ve iki turda system prompt, araç sırası ve reasoning bloğunun kalmasını kontrol eder.
+`npm test`: 20 test geçti. Faz 1'deki 15 test duruyor. Bench testleri ikinci model çağrısını ikinci kullanıcı turundan ayırır. Dosya doğru olsa bile beklenen araç çağrısı yoksa not başarısız olur.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
-`npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI `.github/workflows/ci.yml` içinde `npm ci`, `npm test` ve `npm run build` çalıştırır. Canlı API CI'ya girmez.
+`npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
+
+GitHub'daki ilk Actions koşusu, [run 39792248273](https://github.com/kaantas77/linco-harness/actions/runs/39792248273), adım başlatmadan `failure` oldu. Adım listesi boş, runner id 0. Check annotation şöyle: "The job was not started because your account is locked due to a billing issue." Bu bir test hatası değil. Hesap kilidi kalkmadan aynı workflow yeniden kırmızı kalır. Yerel 20 test ve build bu yüzden duruyor.
 
 ## Canlı ölçüm
 
@@ -65,11 +67,15 @@ Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk po
 | linco | code-run | 2186 | 312 | 455 | 95 | 3328 | 455 | 0.000270 |
 | pi | code-run | 1911 | 326 | 473 | 85 | 896 | 473 | 0.000249 |
 
-`session-continue` önce koştu. İki koşucuda da ilk çağrının `cacheRead` değeri 0'dı. İkinci çağrı Linco'da 1792, yalın Pi'de 512 oldu. İki tarafta da system prompt ve araç sırası ikinci turda aynı kaldı. Linco bu senaryoda `thinkingLevel: low` ile bir reasoning bloğu üretti ve ikinci turda duruyordu. Yalın Pi thinking bloğu döndürmedi, bu yüzden onun reasoning satırı `n/a`. Ürünün varsayılan thinking seviyesi hâlâ kapalı. Yalnızca bu senaryo `low` ister.
+`session-continue` önce koştu. İki koşucuda da ilk model çağrısının `cacheRead` değeri 0'dı. Rapordaki "ikinci çağrı" Linco'da 1792, yalın Pi'de 512'dir. Bu sayı ikinci kullanıcı mesajı değildir. Linco'nun o koşuya ait SQLite dosyasında ilk görev iki çağrı tutuyor: ilki 0, ikincisi 1792. 1792, ilk mesajın araç sonucundan sonraki model çağrısıdır. İkinci kullanıcı görevine ait ilk çağrı 1920'dir. Yalın Pi aynı raporda dört çağrı yazmış, görev sınırı yoktur; o 512'yi ikinci kullanıcı turu diye etiketlemiyoruz. Yeni raporda `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk model çağrısıdır. Tek mesajlı senaryoda bu alan `n/a` olur. Bu ayrım yeni bir API çağrısı değildir. Eski dosyanın yeniden okunmasıdır.
 
-Sonraki senaryoların ilk çağrılarında cache hit görünmesi, önceki senaryonun prefix'i ısıtmasından gelir. Karşılaştırılacak sayı, senaryonun kendi birinci ve ikinci çağrısıdır. Dört senaryoda da ikinci çağrı hit bildirdi.
+İki tarafta da system prompt ve araç sırası ikinci turda aynı kaldı. Linco bu senaryoda `thinkingLevel: low` ile bir reasoning bloğu üretti ve ikinci turda duruyordu. Yalın Pi thinking bloğu döndürmedi, bu yüzden onun reasoning satırı `n/a`. Ürünün varsayılan thinking seviyesi hâlâ kapalı. Yalnızca bu senaryo `low` ister.
 
-Cache miss, Pi'nin önbelleğe girmemiş input token'ıdır. `cacheRead` input'un içine dahil değildir.
+Sonraki senaryoların ilk çağrılarında cache hit görünmesi, önceki senaryonun prefix'i ısıtmasından gelir. Dört senaryoda da ikinci model çağrısı hit bildirdi. Bu, ikinci kullanıcı turunun ölçümü değildir. `file-write` tek mesajdır ve ikinci çağrı araç dönüşüdür.
+
+Cache miss, Pi'nin önbelleğe girmemiş input token'ıdır. `cacheRead` input'un içine dahil değildir. Daha yüksek hit, bu koşuda daha düşük fatura üretmedi.
+
+Bu tablodaki notlar dosya içeriğine bakar. Araç çağrısını şart koşmaz. `inbox-pick` ve `edit-port` sonradan eklendi. Onlar, `fs_read` sırası ve `fs_edit` argümanı olmadan geçmez. Bu iki senaryo canlı koşulmadı. Anahtar bu turda kullanılmadı. Onlar için başarı, süre veya maliyet yoktur.
 
 ## Üretim engeli
 
@@ -94,27 +100,27 @@ DeepSeek Harness, Hermes ve NeMo kaynak ağaçları bu depoya kopyalanmadı. Ü�
 
 ## Sıradaki faz
 
-Sırayı bozma. Önce ölç, sonra ekle. Bir mekanizma görev başarısını, süreyi veya token'ı iyileştirmiyorsa durmasın.
+Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yeterli. GitHub Actions, hesap kilidi kalkınca aynı workflow ile doğrulanır.
 
-1. Canlı taban çizgisi bir kez alındı. Sayılar aşağıdaki ölçüm bölümünde. Bu tek koşu bir sıralama değildir. DeepSeek Harness aynı senaryolarla henüz koşulmadı. Yeni bir mekanizma eklenirse aynı komutla yeniden ölç.
+1. Canlı taban çizgisi bir kez alındı. Sayılar yukarıdaki ölçüm bölümünde. Bu tek koşu bir sıralama değildir. Toplam süreler birbirine yakındı. Linco'nun faturası bu koşuda daha yüksekti. Araç listesi ve prompt boyutu farklı olduğu için bu bir verimlilik kararı değildir. DeepSeek Harness aynı senaryolarla henüz koşulmadı.
 
-2. Cache gözlemi de aynı koşuda alındı. Ayrıntı aşağıda. İkinci çağrıda `cacheRead` 0 olursa bunu senaryo başarısızlığı sayma. System prompt veya araç sırası ikinci turda değişirse onu bug say.
+2. Cache alanları ayrıldı. `secondCallCacheRead` ikinci model çağrısıdır. `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk çağrısıdır. İkincisi bu eski raporda etiketli değildir. Linco'nun kayıtlı veritabanında o değer 1920'dir. Yeni senaryoların canlı koşusu anahtar olmadan yapılmadı.
 
 3. Tarayıcı. `BrowserProvider`'a profil dizini `workspace/.linco/browser` olan bir Playwright sağlayıcısı ekle. `web_fetch` kalsın. Yeni araçlar ayrı adlarla gelsin ki mevcut araç listesinin prefix'i, profilsiz kurulumda değişmesin. Araç listesi değişecekse bunu bir oturum sürümü olarak tut ve cache etkisini ölç.
 
-4. Çocuk görev. `task_spawn` / `task_wait` ilk kesit. Eksik olan, ebeveynin worker'ı kilitlemeden çocuğun sonucunu alması ve birden fazla çocuğun planlanması. Bunu DeepSeek subagent paketini yapıştırarak değil, mevcut kuyruk üstüne kur.
+4. Kabuk izolasyonu. `SECURITY.md` içindeki üretim engeli. İfade filtresini sıkılaştırmak yetmez. Süreç sandbox'ı gerekir. OpenShell, paylaşılan makine ihtiyacı doğunca.
 
-5. Plan. `plan_write` duruyor. İkinci adım, bitiş kriteri olan bir plan ve plan dışına çıkınca durma. Yine ölç.
+5. Çocuk görev. `task_spawn` / `task_wait` ilk kesit. Eksik olan, ebeveynin worker'ı kilitlemeden çocuğun sonucunu alması ve birden fazla çocuğun planlanması. Bunu DeepSeek subagent paketini yapıştırarak değil, mevcut kuyruk üstüne kur.
 
-6. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
+6. Plan. `plan_write` duruyor. İkinci adım, bitiş kriteri olan bir plan ve plan dışına çıkınca durma. Yine ölç.
 
-7. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
+7. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
-8. İzolasyon. Kabuk hâlâ `sh -c`. Dosya aracı kilitli, kabuk değil. Bir sonraki güvenlik adımı komut filtresini sıkılaştırmak değil, süreç sandbox'ı. OpenShell'i ancak çok kullanıcılı makine paylaşımı gerekince değerlendir. O günden önce Seatbelt veya eşdeğeri bir `ComputerProvider` olabilir.
+8. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
 
-9. Süreç sınırı. Aynı SQLite kuyruğunu başka bir makinedeki worker'ın alması. API değişmeden. Önce tek makinede ikinci bir süreçle dene.
+9. Süreç sınırı. Aynı SQLite kuyruğunu başka bir makinedeki worker'ın alması. API değişmeden. Önce tek makinede ikinci bir süreçle dene. Kira ve transkript çiti `SECURITY.md` içinde üretim engelidir.
 
-10. NeMo. `linco.observe.v1` izini NeMo eval'ine sok. Harness'in içine NeMo runtime'ı bağlama. Aynı görevi iki harness sürümünde karşılaştırmak için kullan.
+10. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
 
 ## Doğrulama
 

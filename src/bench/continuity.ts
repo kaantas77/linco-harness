@@ -36,6 +36,23 @@ export function replayToolNames(messages: AgentMessage[]): string[] {
   return names;
 }
 
+export interface ToolUse {
+  name: string;
+  arguments: unknown;
+}
+
+/** Tool calls the model actually emitted, in transcript order. */
+export function toolInvocations(messages: AgentMessage[]): ToolUse[] {
+  const uses: ToolUse[] = [];
+  for (const message of messages) {
+    if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
+    for (const block of message.content) {
+      if (block.type === "toolCall") uses.push({ name: block.name, arguments: block.arguments });
+    }
+  }
+  return uses;
+}
+
 export function thinkingBlocks(messages: AgentMessage[]): string[] {
   const blocks: string[] = [];
   for (const message of messages) {

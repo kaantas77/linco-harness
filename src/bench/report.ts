@@ -7,7 +7,7 @@ import { redactSecrets } from "./types.js";
 export function offlineRowsToReport(
   rows: { id: string; group: string; ok: boolean; status: string; durationMs: number; detail: string }[],
 ): BenchReport {
-  const empty = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0 };
+  const empty = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0, userTurn: 0 };
   return {
     createdAt: new Date().toISOString(),
     mode: "offline",
@@ -22,7 +22,7 @@ export function offlineRowsToReport(
       status: row.status,
       durationMs: row.durationMs,
       firstResponseMs: null,
-      usage: empty,
+      usage: { ...empty, userTurn: 0 },
       cacheHitRatio: 0,
       calls: [],
       cache: emptyCache(),
@@ -80,7 +80,7 @@ export function renderBenchMarkdown(report: BenchReport): string {
     lines.push("", "## Cache checks", "");
     for (const row of report.results) {
       lines.push(
-        `- ${row.runner} / ${row.scenarioId}: first cacheRead ${formatNullable(row.cache.firstCallCacheRead)}, second cacheRead ${formatNullable(row.cache.secondCallCacheRead)}, second call hit ${formatNullable(row.cache.secondCallHit)}, system prompt stable ${formatNullable(row.cache.systemPromptStable)}, tool order stable ${formatNullable(row.cache.toolOrderStable)}, reasoning preserved ${formatNullable(row.cache.reasoningPreserved)}. ${redactSecrets(row.detail)}`,
+        `- ${row.runner} / ${row.scenarioId}: first model call cacheRead ${formatNullable(row.cache.firstCallCacheRead)}, second model call cacheRead ${formatNullable(row.cache.secondCallCacheRead)} (hit ${formatNullable(row.cache.secondCallHit)}), second user turn cacheRead ${formatNullable(row.cache.secondUserTurnCacheRead)} (hit ${formatNullable(row.cache.secondUserTurnHit)}), system prompt stable ${formatNullable(row.cache.systemPromptStable)}, tool order stable ${formatNullable(row.cache.toolOrderStable)}, reasoning preserved ${formatNullable(row.cache.reasoningPreserved)}. ${redactSecrets(row.detail)}`,
       );
     }
     lines.push("");
@@ -108,6 +108,8 @@ export function emptyCache(): ScenarioResult["cache"] {
     firstCallCacheRead: null,
     secondCallCacheRead: null,
     secondCallHit: null,
+    secondUserTurnCacheRead: null,
+    secondUserTurnHit: null,
     systemPromptStable: null,
     toolOrderStable: null,
     reasoningPreserved: null,

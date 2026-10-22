@@ -17,7 +17,7 @@ node dist/cli.js task --user ada "Çalışma alanına merhaba.txt yaz"
 node dist/cli.js bench
 ```
 
-`bench` ağa çıkmaz ve `reports/offline.json` ile `reports/offline.md` yazar. Gerçek DeepSeek karşılaştırması `node dist/cli.js bench --live`. Anahtar yoksa canlı rapor üretilmez; komut beklemede olduğunu yazar ve çıkış kodu 0'dır. Canlı rapor `reports/live.json` ve `reports/live.md` dosyalarıdır. Bu raporlar ölçüm tutar. Bir koşunun diğerinden hızlı veya ucuz olduğunu söylemez.
+`bench` ağa çıkmaz ve `reports/offline.json` ile `reports/offline.md` yazar. Gerçek DeepSeek karşılaştırması `node dist/cli.js bench --live`. Anahtar yoksa canlı rapor üretilmez; komut beklemede olduğunu yazar ve çıkış kodu 0'dır. Canlı rapor `reports/live.json` ve `reports/live.md` dosyalarıdır. İkinci model çağrısı ile ikinci kullanıcı turunun cache değeri ayrı yazılır. Senaryo, dosya içeriğinin yanında gerekli araç çağrısını da arar. Bu raporlar ölçüm tutar. Bir koşunun diğerinden hızlı veya ucuz olduğunu söylemez.
 
 Varsayılan model `deepseek-flash`. Değiştirmek için `LINCO_MODEL=deepseek-v4-pro`.
 

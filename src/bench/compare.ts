@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Agent } from "@earendil-works/pi-agent-core";
+import { Agent, type AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Usage } from "@earendil-works/pi-ai";
 import { Harness } from "../agent/runtime.js";
 import type { LincoConfig } from "../config.js";
 import { createDeepSeek } from "../llm/deepseek.js";
 import { BARE_SYSTEM_PROMPT, createBareTools } from "./bare-tools.js";
-import { continuityHeld, readContinuity } from "./continuity.js";
+import { continuityHeld, readContinuity, toolInvocations } from "./continuity.js";
 import { compareCache, sumCalls, type CallUsage } from "./metrics.js";
 import { emptyCache, pendingLiveReport, usageRatio } from "./report.js";
 import { liveScenarios, type LiveScenario } from "./scenarios.js";
@@ -34,6 +34,9 @@ export async function runComparison(config: LincoConfig): Promise<BenchReport> {
       "The Linco runner uses the full tool list, the warm worker, and the session transcript.",
       "session-continue runs first so its first call is the coldest prefix this process can get. Later scenarios can still hit a prefix cached by an earlier scenario.",
       "cacheRead is DeepSeek prompt_cache_hit_tokens as reported by Pi. cache miss tokens are Pi's uncached input tokens.",
+      "second model call cacheRead is the second assistant response. In a tool loop that is the follow-up after the first tool result, not the second user message.",
+      "second user turn cacheRead is the first model call after the second user message. It is n/a when the scenario has one prompt.",
+      "A scenario passes only when the files are right and the required tool calls appear in order. Writing the expected file by another path fails the grade.",
       "reasoning preserved is n/a when the model returned no thinking blocks.",
       "A trailing newline is ignored by the file grader.",
     ],
@@ -93,10 +96,9 @@ async function runLincoScenario(scenario: LiveScenario, config: LincoConfig): Pr
       if (!before) before = readContinuity(harness.db.getTranscript(session.id));
     }
     const messages = harness.db.getTranscript(session.id);
-    const calls = harness.db
-      .listSessionTasks(session.id)
-      .flatMap((task) => harness.db.listUsage(task.id))
-      .map(toCall);
+    const calls = harness.db.listSessionTasks(session.id).flatMap((task, userTurn) =>
+      harness.db.listUsage(task.id).map((event) => ({ ...toCall(event), userTurn })),
+    );
     return finishResult({
       runner: "linco",
       scenario,
@@ -105,6 +107,7 @@ async function runLincoScenario(scenario: LiveScenario, config: LincoConfig): Pr
       durationMs: Date.now() - started,
       firstResponseMs,
       calls,
+      messages,
       installedPrompt: session.systemPrompt,
       before,
       after: readContinuity(messages),
@@ -122,6 +125,7 @@ async function runBareScenario(scenario: LiveScenario, config: LincoConfig): Pro
   const abort = new AbortController();
   const tools = createBareTools(workspace, abort.signal);
   const calls: CallUsage[] = [];
+  const cursor = { userTurn: 0 };
   let firstResponseMs: number | null = null;
   const started = Date.now();
   const agent = new Agent({
@@ -141,7 +145,7 @@ async function runBareScenario(scenario: LiveScenario, config: LincoConfig): Pro
       firstResponseMs = Date.now() - started;
     }
     if (event.type === "message_end" && event.message.role === "assistant" && "usage" in event.message) {
-      calls.push(fromUsage(event.message.usage));
+      calls.push({ ...fromUsage(event.message.usage), userTurn: cursor.userTurn });
     }
   });
   const statuses: string[] = [];
@@ -155,6 +159,7 @@ async function runBareScenario(scenario: LiveScenario, config: LincoConfig): Pro
       if (!(error instanceof Error) || error.message !== "timed out") throw error;
     }
     if (!before) before = readContinuity(agent.state.messages);
+    cursor.userTurn += 1;
   }
   return finishResult({
     runner: "pi",
@@ -164,6 +169,7 @@ async function runBareScenario(scenario: LiveScenario, config: LincoConfig): Pro
     durationMs: Date.now() - started,
     firstResponseMs,
     calls,
+    messages: agent.state.messages,
     installedPrompt: BARE_SYSTEM_PROMPT,
     before,
     after: readContinuity(agent.state.messages),
@@ -197,11 +203,12 @@ function finishResult(input: {
   durationMs: number;
   firstResponseMs: number | null;
   calls: CallUsage[];
+  messages: AgentMessage[];
   installedPrompt: string;
   before: ReturnType<typeof readContinuity> | null;
   after: ReturnType<typeof readContinuity>;
 }): ScenarioResult {
-  const grade = input.scenario.grade(input.workspace);
+  const grade = input.scenario.grade({ workspace: input.workspace, tools: toolInvocations(input.messages) });
   const failed = input.statuses.some((status) => status !== "succeeded");
   const usage = sumCalls(input.calls);
   const held = input.before ? continuityHeld(input.before, input.after) : null;
@@ -227,7 +234,7 @@ function finishResult(input: {
   };
 }
 
-function toCall(event: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; costUsd: number }): CallUsage {
+function toCall(event: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; costUsd: number }): Omit<CallUsage, "userTurn"> {
   return {
     inputTokens: event.inputTokens,
     outputTokens: event.outputTokens,
@@ -237,7 +244,7 @@ function toCall(event: { inputTokens: number; outputTokens: number; cacheReadTok
   };
 }
 
-function fromUsage(usage: Usage): CallUsage {
+function fromUsage(usage: Usage): Omit<CallUsage, "userTurn"> {
   return {
     inputTokens: usage.input,
     outputTokens: usage.output,
