@@ -9,6 +9,8 @@ export interface LincoConfig {
   maxTurns: number;
   model: string;
   apiKey?: string;
+  /** Omitted means the agent default, which is off. */
+  thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   compactMaxChars: number;
   schedulerIntervalMs: number;
 }

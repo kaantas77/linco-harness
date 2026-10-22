@@ -264,6 +264,7 @@ export class Harness {
         initialState: {
           model: llm.model,
           tools,
+          ...(this.config.thinkingLevel ? { thinkingLevel: this.config.thinkingLevel } : {}),
           ...(transcript.length === 0 ? { systemPrompt: session.systemPrompt } : { messages: transcript }),
         },
         streamFn: llm.streamFn,
@@ -284,7 +285,7 @@ export class Harness {
           compactForRequest(messages, { maxChars: this.config.compactMaxChars }),
       });
       agent.subscribe((event) => {
-        if (event.type === "message_start" && run.firstResponseMs === undefined) {
+        if (event.type === "message_start" && event.message.role === "assistant" && run.firstResponseMs === undefined) {
           run.firstResponseMs = Date.now() - started;
         }
         if (event.type === "message_end" && event.message.role === "assistant" && "usage" in event.message) {

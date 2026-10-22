@@ -548,6 +548,13 @@ export class LincoDb {
     return event;
   }
 
+  listUsage(taskId: string): UsageEvent[] {
+    return this.many<UsageEventRow>(
+      "SELECT * FROM usage_events WHERE task_id = ? ORDER BY turn_index ASC, created_at ASC",
+      taskId,
+    ).map(mapUsage);
+  }
+
   usageSummary(taskId: string): UsageSummary {
     const rows = this.many<UsageRow>("SELECT * FROM usage_events WHERE task_id = ? ORDER BY turn_index ASC", taskId);
     const summary: UsageSummary = {
@@ -787,6 +794,12 @@ interface UsageRow {
   cache_write_tokens: number;
   cost_usd: number;
 }
+interface UsageEventRow extends UsageRow {
+  id: string;
+  task_id: string;
+  turn_index: number;
+  created_at: string;
+}
 
 function mapUser(row: UserRow): User {
   return { id: row.id, name: row.name, workspacePath: row.workspace_path, createdAt: row.created_at };
@@ -873,6 +886,19 @@ function mapNotification(row: NotificationRow): Notification {
     title: row.title,
     body: row.body,
     readAt: row.read_at,
+    createdAt: row.created_at,
+  };
+}
+function mapUsage(row: UsageEventRow): UsageEvent {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    turnIndex: row.turn_index,
+    inputTokens: row.input_tokens,
+    outputTokens: row.output_tokens,
+    cacheReadTokens: row.cache_read_tokens,
+    cacheWriteTokens: row.cache_write_tokens,
+    costUsd: row.cost_usd,
     createdAt: row.created_at,
   };
 }

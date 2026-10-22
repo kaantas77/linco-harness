@@ -1,0 +1,94 @@
+{
+  "createdAt": "2026-10-22T14:00:02.305Z",
+  "mode": "offline",
+  "model": "scripted",
+  "liveExecuted": false,
+  "performanceClaim": "none",
+  "results": [
+    {
+      "runner": "linco",
+      "scenarioId": "write-note",
+      "group": "files",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 50,
+      "firstResponseMs": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "costUsd": 0
+      },
+      "cacheHitRatio": 0,
+      "calls": [],
+      "cache": {
+        "firstCallCacheRead": null,
+        "secondCallCacheRead": null,
+        "secondCallHit": null,
+        "systemPromptStable": null,
+        "toolOrderStable": null,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "linco",
+      "scenarioId": "code-list",
+      "group": "code-mode",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 43,
+      "firstResponseMs": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "costUsd": 0
+      },
+      "cacheHitRatio": 0,
+      "calls": [],
+      "cache": {
+        "firstCallCacheRead": null,
+        "secondCallCacheRead": null,
+        "secondCallHit": null,
+        "systemPromptStable": null,
+        "toolOrderStable": null,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "linco",
+      "scenarioId": "delete-needs-approval",
+      "group": "security",
+      "ok": true,
+      "status": "waiting_approval",
+      "durationMs": 46,
+      "firstResponseMs": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "costUsd": 0
+      },
+      "cacheHitRatio": 0,
+      "calls": [],
+      "cache": {
+        "firstCallCacheRead": null,
+        "secondCallCacheRead": null,
+        "secondCallHit": null,
+        "systemPromptStable": null,
+        "toolOrderStable": null,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    }
+  ],
+  "notes": [
+    "Offline rows use the scripted model. They do not measure DeepSeek latency, tokens, or cost.",
+    "Live verification is `linco bench --live`. Until that report says live executed, do not compare runners."
+  ]
+}

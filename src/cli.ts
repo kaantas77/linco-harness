@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { Harness } from "./agent/runtime.js";
-import { runLiveHello, runOfflineBench } from "./bench/runner.js";
+import { runComparison } from "./bench/compare.js";
+import { offlineRowsToReport, renderBenchMarkdown, writeBenchReport } from "./bench/report.js";
+import { runOfflineBench } from "./bench/runner.js";
 import { loadConfig } from "./config.js";
 import { HarnessServer } from "./server/http.js";
 
@@ -10,7 +12,8 @@ const [command, ...args] = process.argv.slice(2);
 if (!command || command === "help" || command === "--help") {
   console.log(`linco serve [--port 8787] [--data .data]
 linco task --user <name> "<prompt>"
-linco bench [--live]`);
+linco bench [--out reports]
+linco bench --live [--out reports] [--data .data-bench]`);
   process.exit(0);
 }
 
@@ -47,13 +50,21 @@ if (command === "serve") {
   }
 } else if (command === "bench") {
   const config = loadConfig({ dataDir: flagValue(args, "--data") ?? path.resolve(".data-bench") });
+  const out = flagValue(args, "--out") ?? path.resolve("reports");
   if (args.includes("--live")) {
-    const row = await runLiveHello(config);
-    console.log(JSON.stringify(row, null, 2));
-    process.exitCode = row.ok ? 0 : 1;
+    const report = await runComparison(config);
+    const written = writeBenchReport(out, "live", report);
+    console.log(renderBenchMarkdown(report));
+    console.log(`wrote ${written.json}`);
+    console.log(`wrote ${written.markdown}`);
+    process.exitCode = report.liveExecuted && report.results.some((row) => !row.ok) ? 1 : 0;
   } else {
     const rows = await runOfflineBench({ dataDir: config.dataDir, skillsDir: config.skillsDir });
+    const report = offlineRowsToReport(rows);
+    const written = writeBenchReport(out, "offline", report);
     console.table(rows.map(({ id, group, ok, status, durationMs, detail }) => ({ id, group, ok, status, durationMs, detail })));
+    console.log(`wrote ${written.json}`);
+    console.log(`wrote ${written.markdown}`);
     process.exitCode = rows.every((row) => row.ok) ? 0 : 1;
   }
 } else {
@@ -65,7 +76,7 @@ function positionals(argv: string[]): string[] {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!arg) continue;
-    if (arg === "--user" || arg === "--data" || arg === "--port") {
+    if (arg === "--user" || arg === "--data" || arg === "--port" || arg === "--out") {
       index += 1;
       continue;
     }

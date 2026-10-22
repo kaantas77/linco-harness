@@ -12,7 +12,9 @@ export interface ScriptCall {
   arguments: JsonObject;
 }
 
-export type ScriptStep = { text: string; usage?: Usage } | { calls: ScriptCall[]; usage?: Usage };
+export type ScriptStep =
+  | { text: string; thinking?: string; usage?: Usage }
+  | { calls: ScriptCall[]; usage?: Usage };
 
 export const SCRIPT_MODEL = {
   id: "linco-script",
@@ -84,9 +86,14 @@ function messageFromStep(step: ScriptStep): AssistantMessage {
       timestamp: Date.now(),
     };
   }
+  const content: AssistantMessage["content"] = [];
+  if (step.thinking) {
+    content.push({ type: "thinking", thinking: step.thinking, thinkingSignature: "reasoning_content" });
+  }
+  content.push({ type: "text", text: step.text });
   return {
     role: "assistant",
-    content: [{ type: "text", text: step.text }],
+    content,
     api: "openai-completions",
     provider: "deepseek",
     model: SCRIPT_MODEL.id,

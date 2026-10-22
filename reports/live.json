@@ -1,0 +1,410 @@
+{
+  "createdAt": "2026-10-22T14:00:38.134Z",
+  "mode": "live",
+  "model": "deepseek-flash",
+  "liveExecuted": true,
+  "performanceClaim": "none",
+  "results": [
+    {
+      "runner": "linco",
+      "scenarioId": "session-continue",
+      "group": "session",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 4349,
+      "firstResponseMs": 488,
+      "usage": {
+        "inputTokens": 2417,
+        "outputTokens": 178,
+        "cacheReadTokens": 5632,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.0009724919999999999
+      },
+      "cacheHitRatio": 0.6997142502174183,
+      "calls": [
+        {
+          "inputTokens": 1863,
+          "outputTokens": 72,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.0006453
+        },
+        {
+          "inputTokens": 159,
+          "outputTokens": 19,
+          "cacheReadTokens": 1792,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000081252
+        },
+        {
+          "inputTokens": 160,
+          "outputTokens": 57,
+          "cacheReadTokens": 1920,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00012792
+        },
+        {
+          "inputTokens": 235,
+          "outputTokens": 30,
+          "cacheReadTokens": 1920,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00011801999999999998
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 0,
+        "secondCallCacheRead": 1792,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": true
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "pi",
+      "scenarioId": "session-continue",
+      "group": "session",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 4176,
+      "firstResponseMs": 307,
+      "usage": {
+        "inputTokens": 1222,
+        "outputTokens": 134,
+        "cacheReadTokens": 1792,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.000538152
+      },
+      "cacheHitRatio": 0.5945587259455872,
+      "calls": [
+        {
+          "inputTokens": 658,
+          "outputTokens": 55,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.0002634
+        },
+        {
+          "inputTokens": 217,
+          "outputTokens": 10,
+          "cacheReadTokens": 512,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000080172
+        },
+        {
+          "inputTokens": 136,
+          "outputTokens": 57,
+          "cacheReadTokens": 640,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00011304
+        },
+        {
+          "inputTokens": 211,
+          "outputTokens": 12,
+          "cacheReadTokens": 640,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00008154
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 0,
+        "secondCallCacheRead": 512,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "linco",
+      "scenarioId": "file-write",
+      "group": "files",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 2013,
+      "firstResponseMs": 327,
+      "usage": {
+        "inputTokens": 2078,
+        "outputTokens": 72,
+        "cacheReadTokens": 1664,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.000719784
+      },
+      "cacheHitRatio": 0.44468198824158206,
+      "calls": [
+        {
+          "inputTokens": 1836,
+          "outputTokens": 54,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.0006156
+        },
+        {
+          "inputTokens": 242,
+          "outputTokens": 18,
+          "cacheReadTokens": 1664,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000104184
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 0,
+        "secondCallCacheRead": 1664,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "pi",
+      "scenarioId": "file-write",
+      "group": "files",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 2106,
+      "firstResponseMs": 378,
+      "usage": {
+        "inputTokens": 824,
+        "outputTokens": 62,
+        "cacheReadTokens": 512,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.00032467199999999997
+      },
+      "cacheHitRatio": 0.38323353293413176,
+      "calls": [
+        {
+          "inputTokens": 633,
+          "outputTokens": 54,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00025469999999999996
+        },
+        {
+          "inputTokens": 191,
+          "outputTokens": 8,
+          "cacheReadTokens": 512,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000069972
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 0,
+        "secondCallCacheRead": 512,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "linco",
+      "scenarioId": "multi-step",
+      "group": "multi-step",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 3907,
+      "firstResponseMs": 311,
+      "usage": {
+        "inputTokens": 901,
+        "outputTokens": 272,
+        "cacheReadTokens": 7040,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.00063894
+      },
+      "cacheHitRatio": 0.8865382193678378,
+      "calls": [
+        {
+          "inputTokens": 333,
+          "outputTokens": 75,
+          "cacheReadTokens": 1536,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00019911599999999997
+        },
+        {
+          "inputTokens": 170,
+          "outputTokens": 40,
+          "cacheReadTokens": 1792,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00010975199999999999
+        },
+        {
+          "inputTokens": 226,
+          "outputTokens": 56,
+          "cacheReadTokens": 1792,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00014575199999999997
+        },
+        {
+          "inputTokens": 172,
+          "outputTokens": 101,
+          "cacheReadTokens": 1920,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00018432
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 1536,
+        "secondCallCacheRead": 1792,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "pi",
+      "scenarioId": "multi-step",
+      "group": "multi-step",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 4430,
+      "firstResponseMs": 357,
+      "usage": {
+        "inputTokens": 799,
+        "outputTokens": 244,
+        "cacheReadTokens": 2304,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.0005463239999999999
+      },
+      "cacheHitRatio": 0.7425072510473735,
+      "calls": [
+        {
+          "inputTokens": 151,
+          "outputTokens": 71,
+          "cacheReadTokens": 512,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000133572
+        },
+        {
+          "inputTokens": 240,
+          "outputTokens": 40,
+          "cacheReadTokens": 512,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000123072
+        },
+        {
+          "inputTokens": 167,
+          "outputTokens": 56,
+          "cacheReadTokens": 640,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00012114
+        },
+        {
+          "inputTokens": 241,
+          "outputTokens": 77,
+          "cacheReadTokens": 640,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00016853999999999998
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 512,
+        "secondCallCacheRead": 512,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "linco",
+      "scenarioId": "code-run",
+      "group": "code",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 2186,
+      "firstResponseMs": 312,
+      "usage": {
+        "inputTokens": 455,
+        "outputTokens": 95,
+        "cacheReadTokens": 3328,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.00027046799999999995
+      },
+      "cacheHitRatio": 0.8797250859106529,
+      "calls": [
+        {
+          "inputTokens": 313,
+          "outputTokens": 64,
+          "cacheReadTokens": 1536,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00017991599999999996
+        },
+        {
+          "inputTokens": 142,
+          "outputTokens": 31,
+          "cacheReadTokens": 1792,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00009055199999999998
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 1536,
+        "secondCallCacheRead": 1792,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    },
+    {
+      "runner": "pi",
+      "scenarioId": "code-run",
+      "group": "code",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 1911,
+      "firstResponseMs": 326,
+      "usage": {
+        "inputTokens": 473,
+        "outputTokens": 85,
+        "cacheReadTokens": 896,
+        "cacheWriteTokens": 0,
+        "costUsd": 0.000249276
+      },
+      "cacheHitRatio": 0.6544923301680059,
+      "calls": [
+        {
+          "inputTokens": 258,
+          "outputTokens": 64,
+          "cacheReadTokens": 384,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.00015650400000000002
+        },
+        {
+          "inputTokens": 215,
+          "outputTokens": 21,
+          "cacheReadTokens": 512,
+          "cacheWriteTokens": 0,
+          "costUsd": 0.000092772
+        }
+      ],
+      "cache": {
+        "firstCallCacheRead": 384,
+        "secondCallCacheRead": 512,
+        "secondCallHit": true,
+        "systemPromptStable": true,
+        "toolOrderStable": true,
+        "reasoningPreserved": null
+      },
+      "detail": "ok"
+    }
+  ],
+  "notes": [
+    "One run per scenario on each runner. The numbers are measurements, not a ranking.",
+    "The Pi runner has fs_list, fs_read, fs_write, fs_edit, and code_run. It has no worker, database, memory, or approval gate.",
+    "The Linco runner uses the full tool list, the warm worker, and the session transcript.",
+    "session-continue runs first so its first call is the coldest prefix this process can get. Later scenarios can still hit a prefix cached by an earlier scenario.",
+    "cacheRead is DeepSeek prompt_cache_hit_tokens as reported by Pi. cache miss tokens are Pi's uncached input tokens.",
+    "reasoning preserved is n/a when the model returned no thinking blocks.",
+    "A trailing newline is ignored by the file grader."
+  ]
+}
