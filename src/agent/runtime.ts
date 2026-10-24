@@ -12,7 +12,8 @@ import { compactForRequest } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
-import { childReport, rewriteWaitResults } from "./children.js";
+import { goalSuccessBlock } from "./goal.js";
+import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
 import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
@@ -246,10 +247,11 @@ export class Harness {
     const waiting = new Set<string>();
     const started = Date.now();
     let agent: Agent | undefined;
+    let resumeChildren = false;
     try {
       const session = this.db.getSession(task.sessionId);
       if (!session) throw new Error(`missing session ${task.sessionId}`);
-      const resumeChildren = task.checkpoint?.resumeChildren === true;
+      resumeChildren = task.checkpoint?.resumeChildren === true;
       let transcript = this.db.getTranscript(session.id);
       if (resumeChildren) {
         transcript = rewriteWaitResults(transcript, (childId) => {
@@ -258,7 +260,6 @@ export class Harness {
           return childReport(this.db, child);
         });
         this.db.setTranscript(session.id, transcript, task.prompt.slice(0, 80));
-        this.db.clearCheckpoint(task.id);
         this.db.addTrace({
           taskId: task.id,
           kind: "orchestration",
@@ -383,6 +384,11 @@ export class Harness {
       }
       if (agent.state.errorMessage) throw new Error(agent.state.errorMessage);
       const result = lastAssistantText(agent.state.messages);
+      const unmet = goalSuccessBlock(this.db.getTask(task.id)?.goal ?? null);
+      if (unmet) {
+        this.db.finishTask(task.id, "failed", { error: unmet, resultText: result, firstResponseMs: run.firstResponseMs });
+        return;
+      }
       this.db.finishTask(task.id, "succeeded", { resultText: result, firstResponseMs: run.firstResponseMs });
       if (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook") {
         this.notify(task, "Görev bitti", result || task.prompt);
@@ -391,7 +397,8 @@ export class Harness {
       if (agent) {
         const sessionId = task.sessionId;
         try {
-          this.persist(agent, sessionId, task.prompt);
+          const messages = resumeChildren ? dropTrailingAssistantError(agent.state.messages) : agent.state.messages;
+          this.db.setTranscript(sessionId, messages, task.prompt.slice(0, 80));
         } catch {
           // The original failure is the one to record.
         }

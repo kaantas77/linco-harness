@@ -38,6 +38,46 @@ export interface PlanStep {
   status: "pending" | "doing" | "done";
 }
 
+export type GoalCriterionStatus = "pending" | "verified" | "unverified" | "blocked";
+
+export type GoalCheck =
+  | { kind: "file_exists"; path: string }
+  | { kind: "file_contains"; path: string; text: string }
+  | { kind: "tool_ok"; tool: string }
+  | { kind: "child_succeeded"; text?: string };
+
+export interface GoalCriterion {
+  id: string;
+  description: string;
+  required: boolean;
+  check: GoalCheck;
+  status: GoalCriterionStatus;
+  evidence?: string;
+}
+
+export type GoalStepStatus = "pending" | "ready" | "doing" | "done" | "failed" | "replaced" | "blocked";
+
+export interface GoalStep {
+  id: string;
+  title: string;
+  dependsOn: string[];
+  expectedOutput: string;
+  status: GoalStepStatus;
+  childTaskId?: string;
+  criteria: GoalCriterion[];
+  failure?: string;
+}
+
+export interface GoalPlan {
+  version: 1;
+  goal: string;
+  steps: GoalStep[];
+  replanBudget: number;
+  replans: number;
+  replanNotes: string[];
+  lastFailureKey?: string;
+}
+
 export interface TaskCheckpoint {
   continuation?: string;
   /** Child task ids the parent is parked on. */
@@ -58,6 +98,7 @@ export interface Task {
   maxAttempts: number;
   checkpoint: TaskCheckpoint | null;
   plan: PlanStep[] | null;
+  goal: GoalPlan | null;
   resultText: string | null;
   error: string | null;
   workerId: string | null;

@@ -40,6 +40,16 @@ export function rewriteWaitResults(messages: AgentMessage[], reportFor: (taskId:
   });
 }
 
+/** Drop the assistant error Pi records when a resume call fails, so the next attempt can continue. */
+export function dropTrailingAssistantError(messages: AgentMessage[]): AgentMessage[] {
+  const last = messages.at(-1);
+  if (!last || last.role !== "assistant") return messages;
+  const failed =
+    ("errorMessage" in last && Boolean(last.errorMessage)) ||
+    ("stopReason" in last && (last.stopReason === "error" || last.stopReason === "aborted"));
+  return failed ? messages.slice(0, -1) : messages;
+}
+
 function toolText(message: AgentMessage): string {
   if (message.role !== "toolResult") return "";
   const content = message.content;

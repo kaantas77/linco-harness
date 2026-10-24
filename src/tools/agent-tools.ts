@@ -1,7 +1,7 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import { selectMemories } from "../prompt/layout.js";
-import type { MemoryKind, PlanStep } from "../types.js";
+import type { MemoryKind, PlanStep, Task } from "../types.js";
 import { childReport, waitMarker } from "../agent/children.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
@@ -89,19 +89,9 @@ export function catalogTools(host: ToolHost): AgentTool[] {
       parameters: Type.Object({ prompt: Type.String() }),
       executionMode: "sequential",
       execute: async (_id, params) => {
-        if (host.parentTaskId) return error("a child task cannot spawn another child");
-        if (params.prompt.length > 8_000) return error("prompt exceeds 8000 characters");
-        if (host.db.countChildren(host.taskId) >= 8) return error("child task limit reached");
-        const session = host.db.createSession(host.userId, host.skills, host.systemPrompt);
-        const task = host.db.enqueueTask({
-          sessionId: session.id,
-          userId: host.userId,
-          prompt: params.prompt,
-          kind: "child",
-          parentId: host.taskId,
-          maxAttempts: 1,
-        });
-        return text(`queued ${task.id}`, { taskId: task.id, status: task.status });
+        const queued = queueChild(host, params.prompt);
+        if ("error" in queued) return error(queued.error);
+        return text(`queued ${queued.task.id}`, { taskId: queued.task.id, status: queued.task.status });
       },
     }),
     defineTool<{ taskId: string; waitMs?: number }>({
@@ -121,6 +111,22 @@ export function catalogTools(host: ToolHost): AgentTool[] {
       },
     }),
   ];
+}
+
+export function queueChild(host: ToolHost, prompt: string): { task: Task } | { error: string } {
+  if (host.parentTaskId) return { error: "a child task cannot spawn another child" };
+  if (prompt.length > 8_000) return { error: "prompt exceeds 8000 characters" };
+  if (host.db.countChildren(host.taskId) >= 8) return { error: "child task limit reached" };
+  const session = host.db.createSession(host.userId, host.skills, host.systemPrompt);
+  const task = host.db.enqueueTask({
+    sessionId: session.id,
+    userId: host.userId,
+    prompt,
+    kind: "child",
+    parentId: host.taskId,
+    maxAttempts: 1,
+  });
+  return { task };
 }
 
 export function shellTool(host: ToolHost): AgentTool {

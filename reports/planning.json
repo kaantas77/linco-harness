@@ -1,0 +1,175 @@
+{
+  "createdAt": "2026-10-24T22:09:20.001Z",
+  "mode": "offline",
+  "performanceClaim": "none",
+  "scenarios": [
+    {
+      "id": "dependent",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 83,
+      "status": "succeeded",
+      "turns": 8,
+      "tokens": {
+        "input": 64,
+        "output": 16,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "parallel",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 475,
+      "status": "succeeded",
+      "turns": 9,
+      "tokens": {
+        "input": 72,
+        "output": 18,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "missing-evidence",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 58,
+      "status": "failed",
+      "turns": 3,
+      "tokens": {
+        "input": 24,
+        "output": 6,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "replan",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 57,
+      "status": "succeeded",
+      "turns": 12,
+      "tokens": {
+        "input": 88,
+        "output": 22,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "preserve",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 57,
+      "status": "cancelled",
+      "turns": 2,
+      "tokens": {
+        "input": 16,
+        "output": 4,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "checklist",
+      "ok": true,
+      "mode": "off",
+      "durationMs": 46,
+      "status": "succeeded",
+      "turns": 2,
+      "tokens": {
+        "input": 16,
+        "output": 4,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "compare-note-off",
+      "ok": true,
+      "mode": "off",
+      "durationMs": 45,
+      "status": "succeeded",
+      "turns": 2,
+      "tokens": {
+        "input": 16,
+        "output": 4,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "compare-note-on",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 47,
+      "status": "succeeded",
+      "turns": 4,
+      "tokens": {
+        "input": 32,
+        "output": 8,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "compare-claim-off",
+      "ok": true,
+      "mode": "off",
+      "durationMs": 108,
+      "status": "succeeded",
+      "turns": 1,
+      "tokens": {
+        "input": 8,
+        "output": 2,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "compare-claim-on",
+      "ok": true,
+      "mode": "on",
+      "durationMs": 64,
+      "status": "failed",
+      "turns": 3,
+      "tokens": {
+        "input": 24,
+        "output": 6,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "detail": "passed"
+    }
+  ],
+  "notes": [
+    "Scripted model. Rows are not DeepSeek latency, tokens, cache, or cost.",
+    "Planning off and on use the same v4 session prefix. The difference is whether the script calls the goal tools.",
+    "A task with no goal still finishes when the model stops. A stored goal finishes only after every required check is verified.",
+    "Token totals are the scripted usage attached to each model turn. Cache was not measured.",
+    "Parallel children sleep 350 ms and share the parent workspace.",
+    "A crash that leaves a child running is not replayed. This bench does not claim exactly-once execution."
+  ]
+}

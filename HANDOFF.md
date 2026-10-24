@@ -1,6 +1,6 @@
-# Linco Harness — faz 4 devir notu
+# Linco Harness — faz 5 devir notu
 
-Bu metin, 24 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. `buildStablePrompt` baytları, araç sırası ve `task_wait` açıklama metni aynı kaldı. `web_fetch` ve eski oturumların araç listesi duruyor.
+Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
 
 Kod: `linco-harness/` (bu klasörün yanında Pi, DeepSeek Harness, Hermes ve NeMo duruyor; onlar referans. Yeni depo sadece `linco-harness`).
 
@@ -44,13 +44,13 @@ Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ expe
 
 ## Test
 
-`npm test`: 39 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
+`npm test`: 45 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. `test/resume.test.ts` hatalı devamın aynı transkriptten yeniden denendiğini, devam sırasında işaretin durduğunu ve SIGKILL sonrası açık çocuğun toplanmadığını kontrol eder. `test/plan.test.ts` bağımlılık, paralel adım, eksik kanıt, yeniden plan ve iptal sonrası planın durmasını kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
 `npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npx playwright install --with-deps chromium`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
 
-GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 39 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur.
+GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 45 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur. Canlı DeepSeek plan ölçümü yoktur.
 
 ## Canlı ölçüm
 
@@ -85,7 +85,7 @@ Anahtar `TYPESAFE_API_KEY` ortam değişkenidir. Depoya yazılmaz. Prompt'a, tra
 
 Canlı koşu 2026-10-24'te bir kez yapıldı. Anahtar yalnızca o sürecin ortamındaydı. Yerel formda gerçek `jev-latest` e-postayı yazıp Save'e bastı. Sunucu `ada@example.com` değerini aldı. Sonuç `done`. Gerekçe "destination verified by fresh browser snapshot". `actions` 2, `typesafeCalls` 2, `computerCalls` 5, girdi token 1111, çıktı token 96, döngü süresi 611 ms. Testin duvar saati Chromium açılışıyla birlikte 1629 ms idi. `test/jev-live.test.ts` ancak `LINCO_JEV_LIVE=1` ve anahtar varken çalışır. Varsayılan `npm test` bu çağrıyı yapmaz.
 
-Yeni oturumun damgası `linco-toolset: v3-jev`dir. v3 prompt'u v2 metnini önek olarak tutar ve sona `browser_select`, `jev_run` ekler. Yalnızca `linco-toolset: v2-browser` damgası olan eski oturum bu iki aracı almaz. v1 oturum tarayıcı aracı almaz. `web_fetch` duruyor. v3 araç tanımları v2 prefix'ini yeniden kullanmaz. Canlı token farkı ölçülmedi.
+Yeni oturumun damgası `linco-toolset: v4-plan`dir. Bu metin v3'ü önek olarak tutar. v3, v2 metnini önek olarak tutar ve sona `browser_select`, `jev_run` ekler. v4 sona `goal_set`, `goal_status`, `goal_dispatch`, `goal_evidence`, `goal_replan` ekler. Eski v3 oturum bu beş aracı almaz. Yalnızca `linco-toolset: v2-browser` damgası olan eski oturum Jev araçlarını almaz. v1 oturum tarayıcı aracı almaz. `web_fetch` duruyor. Canlı token farkı ölçülmedi.
 
 Kişi tarayıcının başına geçmez. Şifre, tek kullanımlık kod veya doğrulama ekranı `USER_TAKEOVER_REQUIRED` ile escalate olur. Native select, listelenen tek etkin etiketi DOM `change` olayıyla yazar. Headless seçicide ok tuşu yolu kullanılmaz. Aynı kontroller durur: tam bir etiket, `multiple` yok, en fazla 50 seçenek.
 
@@ -105,7 +105,23 @@ Devam aynı görev ve aynı Pi transkriptidir. `agent.continue()` yeni kullanıc
 
 İptal, ebeveyn `running` değilse onu `cancelled` yapar, sonra kuyruktaki ve çalışan çocukları iptal eder. Çalışan çocuğun kabuğu görev sinyalinden kesilir. Süreç yeniden açılınca `start()`, çocukları bitmiş `waiting_children` satırlarını bir kez uyandırır. `running` iken çöken satır toplanmaz.
 
+`resumeChildren` işareti, `agent.continue()` bitmeden silinmez. Model çağrısı hata verip görev yeniden kuyruğa girerse işaret durur. Sonraki deneme eski kullanıcı mesajını eklemez. Tamamlanmış araç çağrıları transkriptte kaldığı için yeniden yürütülmez. Çağrının kendisinin yazdığı asistan hata mesajı, devamı kilitlemesin diye transkriptin sonundan düşer. Bu, dosyaya yazılmış bir yan etkiyi geri almaz. Çağrı sırasında yeni bir araç çalıştıysa ve süreç orada öldüyse o yan etki ikinci denemede yeniden görülebilir. Bu exactly-once değildir.
+
+SIGKILL ile öldürülen bir süreçte çocuk `running` kalırsa ebeveyn `waiting_children` olarak kalır. Uyanış, açık çocuğu terminal saymaz. Yeni süreç o satırları kendiliğinden bitirmez. Düzgün `stop()` çalışan çocukları iptal eder. Bu da exactly-once değildir.
+
 Ölçüm `reports/orchestration.json` ve `reports/orchestration.md`. Mod `offline`. `performanceClaim` none. Beş senaryo da scripted modeldir. DeepSeek token'ı, cache'i ve maliyeti ölçülmedi. Hepsi sıfırdır. Paralel satır iki worker ve 350 ms uyku kullanır. İki çocuk örtüşür. Tek worker'da aynı uykular örtüşmez. Süreler duvar saatidir ve süreç ile SQLite payını içerir. Bu bir model sıralaması değildir. Başarısız çocuk ebeveyni uyandırır ve transkriptte her iki rapor da durur. İptal, ebeveyni ve çocukları `cancelled` yapar. Yeniden açılış, ebeveyni bir model çağrısıyla ve tek kullanıcı mesajıyla bitirir.
+
+## Hedef planı
+
+Basit görev plan açmadan biter. `plan_write` eski kontrol listesidir ve hedef kapısını çalıştırmaz. Karmaşık görev `goal_set` ile SQLite'a yazılır: hedef, adımlar, bağımlılıklar, beklenen çıktı, zorunlu kriter, durum, kanıt, yeniden plan notu ve bütçe. Bütün geçmiş her model çağrısına basılmaz. `goal_status` kısa özeti araç sonucu olarak verir. System prompt sabit kalır.
+
+`goal_dispatch` bağımlılığı bitmiş adımları mevcut çocuk kuyruğuna bırakır. Bağımlılığı açık adım başlamaz. Bağımsız adımlar Faz 4 park ve uyanışıyla paralel gider. Çocuk, çocuk doğuramaz.
+
+`goal_evidence` dosyayı, araç izini veya çocuk sonucunu kendisi okur. Modelin verdiği "oldu" değeri kabul edilmez. Dosya yoksa kriter `unverified` kalır. Yol çalışma alanının dışına çıkıyorsa `blocked` olur. Zorunlu kriterlerin hepsi `verified` olmadan adım `done` olmaz. Planın açık adımı varken ana görev `succeeded` yazılmaz.
+
+Başarısız adım `goal_replan` ile `replaced` olur ve kayıtta kalır. Bitmiş adımlar değişmez. Yeni adımlar eklenir. Aynı hata ikinci kez planlanmaz. Bütçe varsayılan 2, tavan 3'tür. Bütçe bitince kalan adımlar `blocked` olur ve görev gerekçeyle durur.
+
+Ölçüm `reports/planning.json` ve `reports/planning.md`. Mod `offline`. `performanceClaim` none. Aynı not yazma işi plan kapalıyken 2 tur, plan açıkken 4 tur sürdü. Scripted girdi 16'ya karşı 32, çıktı 4'e karşı 8. Bu DeepSeek faturası değildir. Kanıtsız "bitti" iddiası plan kapalıyken `succeeded`, plan açıkken `failed` oldu. Paralel iki adım 350 ms uyudu ve örtüştü. Bağımlı ikinci adım birincinin bitişinden önce başlamadı.
 
 ## Üretim engeli
 
@@ -122,7 +138,7 @@ DeepSeek Harness, Hermes ve NeMo kaynak ağaçları bu depoya kopyalanmadı. Ü�
 - Birden fazla makine. Worker'lar aynı sürecin içinde.
 - Vektör bellek, Hermes FTS, kullanıcıya gösterilen bellek arayüzü. API var, ekran yok.
 - Hermes'teki tam cron ifadesi, kanal bildirimleri, gateway, ACP.
-- DeepSeek'in PTC runtime'ı, goal/plan inceleme akışı, LSP, spill. Çocuk görev bir düzeydir. Çocuk, çocuk doğuramaz. Ayrı çalışma dizini yoktur.
+- DeepSeek'in PTC runtime'ı, plan inceleme akışı, LSP ve spill. Linco'nun kendi hedef tablosu Faz 5'te eklendi. Çocuk görev bir düzeydir. Çocuk, çocuk doğuramaz. Ayrı çalışma dizini yoktur.
 - NeMo değerlendirme koşusu. Yalnızca dışa aktarılan iz var.
 - DeepSeek Harness ile aynı senaryoların karşılaştırması. Bu faz yalın Pi ile Linco'yu ölçtü. Üçüncü ağaç koşulmadı.
 - Mevcut ürünün Hermes yolu kapatılmadı. Bu depo onun yerine geçmeye hazır bir çekirdek. Taşıma ayrı iş.
@@ -139,9 +155,9 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 4. Kabuk izolasyonu. `SECURITY.md` içindeki üretim engeli. İfade filtresini sıkılaştırmak yetmez. Süreç sandbox'ı gerekir. OpenShell bu sırada yok.
 
-5. Çocuk görev kuruldu. Ebeveyn worker'ı bırakır, çocuk bitince aynı transkriptten devam eder. Ayrıntı yukarıdaki bölümde. Sıradaki ürün işi plandır. Derin bir çocuk ağacı ve çocuk başına ayrı dizin bu fazda yoktur.
+5. Çocuk görev kuruldu. Ebeveyn worker'ı bırakır, çocuk bitince aynı transkriptten devam eder. Hatalı devam eski kullanıcı mesajını yeniden göndermez. Ayrıntı yukarıdaki bölümde. Derin bir çocuk ağacı ve çocuk başına ayrı dizin yoktur. `running` satırın çöküşten sonra toplanması yoktur.
 
-6. Plan. `plan_write` duruyor. Sıradaki adım, bitiş kriteri olan bir plan ve plan dışına çıkınca durma. Yine ölç.
+6. Hedef planı kuruldu. Ayrıntı yukarıdaki bölümde. Sıradaki ürün işi bağlamı kısaltmak ve aynı görevleri canlı DeepSeek ile ölçmektir. Planın kendisi bu fazda canlı ölçülmedi.
 
 7. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
@@ -172,7 +188,9 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 ## Dosya haritası
 
 - `src/agent/runtime.ts` — kuyruk, worker, Pi Agent, onay, çocuk parkı ve devam
-- `src/agent/children.ts` — park işareti, çocuk raporu, devam etmeden önce sonuçların değişimi
+- `src/agent/children.ts` — park işareti, çocuk raporu, hatalı asistan mesajını düşürme
+- `src/agent/goal.ts` — hedef, bağımlılık, kanıt ve yeniden plan
+- `src/tools/goal-tools.ts` — v4 hedef araçları
 - `src/llm/deepseek.ts` — Pi DeepSeek sağlayıcısı
 - `src/llm/scripted.ts` — test ve çevrimdışı bench modeli
 - `src/llm/usage.ts` — cache hit oranı
@@ -197,8 +215,12 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `src/bench/scenarios.ts` — dosya, çok adım, kod ve aynı oturum senaryoları
 - `src/bench/report.ts` — JSON ve Markdown
 - `src/bench/orchestration.ts` — scripted çocuk senaryoları
+- `src/bench/planning.ts` — scripted hedef senaryoları ve plan açık/kapalı karşılaştırması
 - `test/orchestrate.test.ts` — park, örtüşme, hata, iptal, tek uyanış
+- `test/resume.test.ts` — devam işareti, veritabanını yeniden açma, süreç öldürme
+- `test/plan.test.ts` — hedef planı
 - `reports/orchestration.json`, `reports/orchestration.md` — `performanceClaim: none`
+- `reports/planning.json`, `reports/planning.md` — `performanceClaim: none`
 - `SECURITY.md` — üretime geçişi durduran dört madde
 - `src/observe/nemo.ts`
 - `skills/file-ops`, `skills/web-research`

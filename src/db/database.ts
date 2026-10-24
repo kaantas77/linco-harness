@@ -13,6 +13,7 @@ import type {
   Memory,
   MemoryKind,
   Notification,
+  GoalPlan,
   PlanStep,
   Session,
   Task,
@@ -147,6 +148,7 @@ export class LincoDb {
       maxAttempts: input.maxAttempts ?? 1,
       checkpoint: input.checkpoint ?? null,
       plan: null,
+      goal: null,
       resultText: null,
       error: null,
       workerId: null,
@@ -304,11 +306,17 @@ export class LincoDb {
   }
 
   requeueTask(id: string, error: string): void {
+    const current = this.getTask(id);
+    const keep =
+      current?.checkpoint?.resumeChildren === true
+        ? JSON.stringify({ resumeChildren: true, waitFor: current.checkpoint.waitFor ?? [] } satisfies TaskCheckpoint)
+        : null;
     this.run(
       `UPDATE tasks
-       SET status = 'queued', attempt = attempt + 1, error = ?, worker_id = NULL, finished_at = NULL, checkpoint_json = NULL
+       SET status = 'queued', attempt = attempt + 1, error = ?, worker_id = NULL, finished_at = NULL, checkpoint_json = ?
        WHERE id = ?`,
       error,
+      keep,
       id,
     );
   }
@@ -325,6 +333,10 @@ export class LincoDb {
 
   setPlan(taskId: string, plan: PlanStep[]): void {
     this.run("UPDATE tasks SET plan_json = ? WHERE id = ?", JSON.stringify(plan), taskId);
+  }
+
+  setGoal(taskId: string, goal: GoalPlan): void {
+    this.run("UPDATE tasks SET goal_json = ? WHERE id = ?", JSON.stringify(goal), taskId);
   }
 
   createApproval(input: {
@@ -739,6 +751,13 @@ export class LincoDb {
       CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
       CREATE INDEX IF NOT EXISTS idx_automations_next ON automations(enabled, next_run_at);
     `);
+    this.addColumn("tasks", "goal_json", "TEXT");
+  }
+
+  private addColumn(table: string, name: string, definition: string): void {
+    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (columns.some((column) => column.name === name)) return;
+    this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
 
   private one<T>(sql: string, ...params: Sql[]): T | undefined {
@@ -781,6 +800,7 @@ interface TaskRow {
   max_attempts: number;
   checkpoint_json: string | null;
   plan_json: string | null;
+  goal_json: string | null;
   result_text: string | null;
   error: string | null;
   worker_id: string | null;
@@ -883,6 +903,7 @@ function mapTask(row: TaskRow): Task {
     maxAttempts: row.max_attempts,
     checkpoint: row.checkpoint_json ? (JSON.parse(row.checkpoint_json) as TaskCheckpoint) : null,
     plan: row.plan_json ? (JSON.parse(row.plan_json) as PlanStep[]) : null,
+    goal: row.goal_json ? (JSON.parse(row.goal_json) as GoalPlan) : null,
     resultText: row.result_text,
     error: row.error,
     workerId: row.worker_id,

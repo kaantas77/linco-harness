@@ -3,10 +3,12 @@ import { buildStablePrompt } from "../prompt/layout.js";
 import type { SkillSummary } from "../skills/catalog.js";
 import { browserTools, jevTools } from "./browser-tools.js";
 import { createTools } from "./create-tools.js";
+import { goalTools } from "./goal-tools.js";
 import type { ToolHost } from "./host.js";
 
 export const BROWSER_TOOLSET_MARK = "linco-toolset: v2-browser";
 export const JEV_TOOLSET_MARK = "linco-toolset: v3-jev";
+export const PLAN_TOOLSET_MARK = "linco-toolset: v4-plan";
 
 const BROWSER_SUFFIX = [
   BROWSER_TOOLSET_MARK,
@@ -39,8 +41,23 @@ export function withJevToolset(prompt: string): string {
   return `${browser}\n\n${JEV_SUFFIX}`;
 }
 
+const PLAN_SUFFIX = [
+  PLAN_TOOLSET_MARK,
+  "Karmaşık işlerde goal_set ile hedef, bağımlılık, beklenen çıktı ve ölçülebilir kriter yaz. Tek adımlık işte plan açma.",
+  "goal_status yalnızca aktif adımların, eksik bağımlılıkların ve kriter durumunun kısa özetini verir.",
+  "Hazır adımları goal_dispatch ile kuyruğa bırak. Bağımlılığı bitmemiş adım başlamaz.",
+  "goal_evidence kriteri kendisi kontrol eder. Dosya, araç izi veya çocuk sonucu yoksa adım tamamlanmış sayılmaz.",
+  "Başarısız adımda goal_replan bitmiş adımları tutar ve yalnızca kalan işi ekler. Aynı hata ikinci kez planlanmaz.",
+].join("\n");
+
+/** v3 prompt plus the goal tools. Older sessions keep their stored prompt and the checklist plan_write. */
+export function withPlanToolset(prompt: string): string {
+  if (prompt.includes(PLAN_TOOLSET_MARK)) return prompt;
+  return `${withJevToolset(prompt)}\n\n${PLAN_SUFFIX}`;
+}
+
 export function browserPrompt(skills: SkillSummary[]): string {
-  return withJevToolset(buildStablePrompt(skills));
+  return withPlanToolset(buildStablePrompt(skills));
 }
 
 export function sessionHasBrowser(prompt: string): boolean {
@@ -51,11 +68,16 @@ export function sessionHasJev(prompt: string): boolean {
   return prompt.includes(JEV_TOOLSET_MARK);
 }
 
-/** v1 sessions keep createTools. v2 appends browser tools. v3 appends browser_select and jev_run. */
+export function sessionHasPlan(prompt: string): boolean {
+  return prompt.includes(PLAN_TOOLSET_MARK);
+}
+
+/** v1 sessions keep createTools. v2 appends browser tools. v3 appends browser_select and jev_run. v4 appends goal tools. */
 export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
   const base = createTools(host);
   if (!sessionHasBrowser(prompt)) return base;
   const browser = browserTools(host);
-  if (!sessionHasJev(prompt)) return [...base, ...browser];
-  return [...base, ...browser, ...jevTools(host)];
+  const withBrowser = sessionHasJev(prompt) ? [...base, ...browser, ...jevTools(host)] : [...base, ...browser];
+  if (!sessionHasPlan(prompt)) return withBrowser;
+  return [...withBrowser, ...goalTools(host)];
 }
