@@ -10,11 +10,13 @@ import {
   readBrowser,
   screenshotBrowser,
   scrollBrowser,
+  selectBrowser,
   snapshotBrowser,
   tabsBrowser,
   verifyBrowser,
   type BrowserTarget,
 } from "../browser/session.js";
+import { jevKey, runDelegatedJev } from "../browser/jev-delegation.js";
 import { resolveInside } from "../security/workspace.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
@@ -23,33 +25,7 @@ import type { ToolHost } from "./host.js";
 /** Appended after the v1 tool list. Order is part of the v2 cache prefix. */
 export function browserTools(host: ToolHost): AgentTool[] {
   const target = (): BrowserTarget => ({ workspaceRoot: host.workspaceRoot, taskId: host.taskId, signal: host.signal });
-  const run = async (name: string, action: () => Promise<{ text: string; details?: Record<string, unknown> }>) => {
-    const startedAt = new Date().toISOString();
-    try {
-      const result = await action();
-      host.db.addTrace({
-        taskId: host.taskId,
-        kind: "browser",
-        name,
-        startedAt,
-        endedAt: new Date().toISOString(),
-        data: result.details ?? {},
-      });
-      return text(result.text, result.details);
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : String(caught);
-      host.db.addTrace({
-        taskId: host.taskId,
-        kind: "browser",
-        name,
-        startedAt,
-        endedAt: new Date().toISOString(),
-        data: { error: message },
-      });
-      if (host.signal.aborted) await closeTaskBrowser(host.taskId);
-      return error(message);
-    }
-  };
+  const run = runner(host);
 
   return [
     defineTool<{ url?: string }>({
@@ -71,7 +47,7 @@ export function browserTools(host: ToolHost): AgentTool[] {
     defineTool<Record<string, never>>({
       name: "browser_snapshot",
       label: "Snapshot page",
-      description: "Read the current page as an accessibility snapshot. Refs such as e1 work only with this snapshotId.",
+      description: "Read the current page as a semantic snapshot. Lines look like `- [b12] button: Save`. Pass that ref with this snapshotId.",
       parameters: Type.Object({}),
       executionMode: "sequential",
       execute: async () => run("browser_snapshot", async () => ({ text: (await snapshotBrowser(target())).text })),
@@ -182,4 +158,89 @@ export function browserTools(host: ToolHost): AgentTool[] {
       execute: async (_id, params) => run("browser_verify", async () => ({ text: (await verifyBrowser(target(), params)).text })),
     }),
   ];
+}
+
+/** v3 only. Jev chooses the action; browser_select repairs a native dropdown after an escalation. */
+export function jevTools(host: ToolHost): AgentTool[] {
+  const target = (): BrowserTarget => ({ workspaceRoot: host.workspaceRoot, taskId: host.taskId, signal: host.signal });
+  const run = runner(host);
+  return [
+    defineTool<{ ref?: string; snapshotId?: number; option: string }>({
+      name: "browser_select",
+      label: "Select option",
+      description: "Choose one exact enabled option label from a native select in the latest semantic snapshot. Pass ref and snapshotId. Custom dropdowns stay a click sequence.",
+      parameters: Type.Object({
+        ref: Type.Optional(Type.String()),
+        snapshotId: Type.Optional(Type.Number()),
+        option: Type.String(),
+      }),
+      executionMode: "sequential",
+      execute: async (_id, params) => run("browser_select", async () => ({ text: await selectBrowser(target(), params) })),
+    }),
+    defineTool<{ goal: string; expected: Record<string, unknown>; inputs?: Array<{ role: string; name: string; value: string }>; maxActions?: number }>({
+      name: "jev_run",
+      label: "Run Jev",
+      description:
+        "Execute one bounded browser subgoal with Jev. TypeSafe jev-latest chooses CLICK, FILL, or SELECT from the semantic snapshot, then a fresh snapshot verifies expected. Open the page first. On escalate, repair with browser tools and delegate a revised goal. Passwords and payment are not sent. Requires TYPESAFE_API_KEY.",
+      parameters: Type.Object({
+        goal: Type.String(),
+        expected: Type.Object({
+          url: Type.Optional(Type.String()),
+          documentUrl: Type.Optional(Type.String()),
+          title: Type.Optional(Type.String()),
+          element: Type.Optional(Type.Unknown()),
+          absentElement: Type.Optional(Type.Unknown()),
+        }),
+        inputs: Type.Optional(Type.Array(Type.Object({ role: Type.String(), name: Type.String(), value: Type.String() }))),
+        maxActions: Type.Optional(Type.Number()),
+      }),
+      executionMode: "sequential",
+      execute: async (_id, params) =>
+        run("jev_run", async () => {
+          const key = jevKey();
+          if (!key) throw new Error("TYPESAFE_API_KEY is not set. Jev did not run.");
+          const result = await runDelegatedJev({ taskId: host.taskId, raw: params, key, target: target() });
+          return {
+            text: JSON.stringify(result),
+            details: {
+              status: result.status,
+              reason: result.reason,
+              actions: result.actions,
+              typesafeCalls: result.typesafeCalls,
+              elapsedMs: result.elapsedMs,
+            },
+          };
+        }),
+    }),
+  ];
+}
+
+function runner(host: ToolHost) {
+  return async (name: string, action: () => Promise<{ text: string; details?: Record<string, unknown> }>) => {
+    const startedAt = new Date().toISOString();
+    try {
+      const result = await action();
+      host.db.addTrace({
+        taskId: host.taskId,
+        kind: "browser",
+        name,
+        startedAt,
+        endedAt: new Date().toISOString(),
+        data: result.details ?? {},
+      });
+      return text(result.text, result.details);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      host.db.addTrace({
+        taskId: host.taskId,
+        kind: "browser",
+        name,
+        startedAt,
+        endedAt: new Date().toISOString(),
+        data: { error: message },
+      });
+      if (host.signal.aborted) await closeTaskBrowser(host.taskId);
+      return error(message);
+    }
+  };
 }

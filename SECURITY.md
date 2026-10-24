@@ -20,7 +20,7 @@ Bu dosya faz 1 kodunun üretimde açılmasını engelleyen dört maddeyi ayrı a
 
 Üretim engeli: model, çalışma alanındaki bir araçla iç ağa ve bulut metadata adreslerinin bu listedeki üçü dışındaki hallerine istek atabilir.
 
-Tarayıcı navigasyonu (`src/browser/navigation-policy.ts`) ayrı bir kontrol kullanır. Loopback açıktır. `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, metadata adları ve sayısal hostlar reddedilir. Her istek Playwright route'undan da geçer. Bu, yönlendirme sonrası adres ve DNS yeniden bağlamayı kapatan bir üretim sınırı değildir. Tarayıcı bu haliyle yerel geliştirme içindir.
+Tarayıcı navigasyonu (`src/browser/navigation-policy.ts`) ayrı bir kontrol kullanır. Loopback açıktır. `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, metadata adları ve sayısal hostlar reddedilir. Her istek Playwright route'undan da geçer. Jev'in snapshot izin listesi aynı host kurallarını DNS sorgusu olmadan uygular. Hostname'in özel adrese çözülmesi navigasyonda reddedilir. Bu, yönlendirme sonrası adres ve DNS yeniden bağlamayı kapatan bir üretim sınırı değildir. `TYPESAFE_API_KEY` varken `jev_run`, sayfa başlığını, adresini, öğe adlarını ve görevin verdiği alan değerlerini TypeSafe'e gönderir. Alanın içindeki metin snapshot'ta yoktur. Şifre adayı olmaz. Tarayıcı bu haliyle yerel geliştirme içindir.
 
 ## Kabuk izolasyonu yok
 

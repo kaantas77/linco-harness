@@ -35,6 +35,26 @@ export class NavigationBlocked extends Error {
   }
 }
 
+/** Same host rules as navigation, without a DNS lookup. Hostnames that are not
+ * IP addresses stay allowed here; the route handler already resolved them. */
+export function snapshotHostAllowed(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.username || url.password) return false;
+  const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (!host || BLOCKED_NAMES.has(host) || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (/^\d+$/.test(host)) return false;
+  if (host === "localhost") return true;
+  const family = isIP(host);
+  if (family === 4 || family === 6) return allowedAddress(host);
+  return true;
+}
+
 /** Allow public http(s) and loopback. Private, link-local, and metadata targets are refused. */
 export async function assertNavigable(raw: string): Promise<URL> {
   let url: URL;

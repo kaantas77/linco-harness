@@ -44,13 +44,13 @@ Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ expe
 
 ## Test
 
-`npm test`: 25 test geçti. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. Yeni 5 test tarayıcı politikasını, v1/v2 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini ve iptalde tarayıcının kapanmasını kontrol eder.
+`npm test`: 38 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
 `npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npx playwright install --with-deps chromium`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
 
-GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 25 test ve build geçti.
+GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 38 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur.
 
 ## Canlı ölçüm
 
@@ -79,11 +79,15 @@ Bu tablodaki notlar dosya içeriğine bakar. Araç çağrısını şart koşmaz.
 
 ## Tarayıcı
 
-OpenMaus'taki Jev akışının Linco hali: sayfa bir accessibility snapshot'tır, öğe `e1` gibi bir ref ile seçilir, ref yalnızca o `snapshotId` için geçerlidir, sonuç taze snapshot'tan doğrulanır. Karar için TypeSafe çağrılmaz. Seçimi Pi ajanı yapar. Playwright 1.64 `ariaSnapshot({ mode: "ai" })` ve `getByRef` kullanılır.
+Karar döngüsü OpenMaus'taki Jev'dir. `src/browser/jev-run.ts` TypeSafe `https://api.typesafe.ai/v1/systemone` adresine `model: "jev-latest"` ile gider. Sayfa, OpenMaus'un ayrıştırdığı satır formatındadır: `Semantic browser snapshot #N — Başlık: URL` ve `- [b12] button: Save`. Seçim listede yoksa, güven 0.65'in altındaysa veya seçilen olasılık 0.50'nin altındaysa durur. Şifre, captcha, ödeme ve silme etiketleri aday olmaz. Tıklama, doldurma ve native select ref artı `snapshotId` ister. Eski ref reddedilir. Doğrulama taze snapshot'tadır: url, title veya tek bir öğe. Bütçe varsayılan 4, tavan 8 eylemdir. Aynı görevde 6 koşu, 24 eylem veya 90 saniye dolunca escalate olur. Aynı sözleşme ve aynı sayfa ikinci kez escalate olursa gerekçe "unchanged failed delegation" olur.
 
-`web_fetch` HTTP metin okuması olarak duruyor. Yeni araçlar v1 listesinin sonuna eklenir: `browser_open`, `browser_goto`, `browser_snapshot`, `browser_read`, `browser_click`, `browser_fill`, `browser_press`, `browser_scroll`, `browser_tabs`, `browser_screenshot`, `browser_verify`.
+Anahtar `TYPESAFE_API_KEY` ortam değişkenidir. Depoya yazılmaz. Prompt'a, trace kaydına ve araç sonucuna konmaz. Anahtar yoksa `jev_run` "Jev did not run" der ve başarı bildirmez. Sahte cevapla yapılan form testi de aynı sonucu verir: `fetchImpl` FILL sonra CLICK seçer, sunucu `ada@example.com` alır, `typesafeCalls` 2, `actions` 2 olur. Bu sahte koşu TypeSafe faturası değildir.
 
-Eski oturumların system prompt'unda `linco-toolset: v2-browser` yoktur. Onlar v1 araç listesini alır. Yeni oturumun prompt'u, v1 metninin sonuna bu damgayı ekler. v2 araç adları v1 adlarıyla başlar. Tool tanımları uzadığı için v2 isteği v1 cache prefix'ini yeniden kullanmaz. Bu bayt ilişkisi testte duruyor. Canlı token farkı ölçülmedi.
+Canlı koşu 2026-10-24'te bir kez yapıldı. Anahtar yalnızca o sürecin ortamındaydı. Yerel formda gerçek `jev-latest` e-postayı yazıp Save'e bastı. Sunucu `ada@example.com` değerini aldı. Sonuç `done`. Gerekçe "destination verified by fresh browser snapshot". `actions` 2, `typesafeCalls` 2, `computerCalls` 5, girdi token 1111, çıktı token 96, döngü süresi 611 ms. Testin duvar saati Chromium açılışıyla birlikte 1629 ms idi. `test/jev-live.test.ts` ancak `LINCO_JEV_LIVE=1` ve anahtar varken çalışır. Varsayılan `npm test` bu çağrıyı yapmaz.
+
+Yeni oturumun damgası `linco-toolset: v3-jev`dir. v3 prompt'u v2 metnini önek olarak tutar ve sona `browser_select`, `jev_run` ekler. Yalnızca `linco-toolset: v2-browser` damgası olan eski oturum bu iki aracı almaz. v1 oturum tarayıcı aracı almaz. `web_fetch` duruyor. v3 araç tanımları v2 prefix'ini yeniden kullanmaz. Canlı token farkı ölçülmedi.
+
+Kişi tarayıcının başına geçmez. Şifre, tek kullanımlık kod veya doğrulama ekranı `USER_TAKEOVER_REQUIRED` ile escalate olur. Native select, listelenen tek etkin etiketi DOM `change` olayıyla yazar. Headless seçicide ok tuşu yolu kullanılmaz. Aynı kontroller durur: tam bir etiket, `multiple` yok, en fazla 50 seçenek.
 
 Profil `workspace/.linco/browser`. Aynı profil ikinci bir görevde açılmaz. Görev bitince veya iptal edilince bağlam kapanır ve kilit kalkar. Ekran görüntüsü çalışma alanına yazılır. Her tarayıcı çağrısı `traces` tablosunda `kind: browser` olur.
 
@@ -101,8 +105,7 @@ DeepSeek Harness, Hermes ve NeMo kaynak ağaçları bu depoya kopyalanmadı. Ü�
 
 Şunlar faz 1'de yok:
 
-- Playwright veya gerçek tarayıcı profili. `BrowserProvider` arayüzü var. Uygulama `HttpBrowserProvider`.
-- Masaüstü kontrolü, ekran, fare. Bilgisayar erişimi dosya ve kabuk. `ComputerProvider` arayüzü var. Uygulama `LocalComputerProvider`.
+- Masaüstü kontrolü. Tarayıcı faz 3'te geldi. Ekran, fare ve Box üzerindeki sanal masa hâlâ yok. `ComputerProvider` arayüzü duruyor. Uygulama `LocalComputerProvider`.
 - İşletim sistemi sandbox'ı. OpenShell yok. Seatbelt, bubblewrap, Landlock yok.
 - Birden fazla makine. Worker'lar aynı sürecin içinde.
 - Vektör bellek, Hermes FTS, kullanıcıya gösterilen bellek arayüzü. API var, ekran yok.
@@ -120,7 +123,7 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 2. Cache alanları ayrıldı. `secondCallCacheRead` ikinci model çağrısıdır. `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk çağrısıdır. İkincisi bu eski raporda etiketli değildir. Linco'nun kayıtlı veritabanında o değer 1920'dir. Yeni senaryoların canlı koşusu anahtar olmadan yapılmadı.
 
-3. Tarayıcı yerel olarak kuruldu. Ayrıntı aşağıdaki bölümde. Canlı DeepSeek maliyeti ölçülmedi. Sıradaki ürün işi, DeepSeek Harness'tan kopyalamadan, mevcut kuyruk üstüne subagent ve planlamadır.
+3. Tarayıcı ve Jev kuruldu. Ayrıntı ve 2026-10-24 canlı Jev sayıları yukarıdaki bölümde. Canlı DeepSeek tarayıcı maliyeti yoktur. Sıradaki ürün işi, DeepSeek Harness'tan kopyalamadan, mevcut kuyruk üstüne subagent ve planlamadır.
 
 4. Kabuk izolasyonu. `SECURITY.md` içindeki üretim engeli. İfade filtresini sıkılaştırmak yetmez. Süreç sandbox'ı gerekir. OpenShell bu sırada yok.
 
@@ -149,7 +152,7 @@ Canlı:
 
 ```bash
 DEEPSEEK_API_KEY=... node dist/cli.js bench --live --out reports --data .data-bench
-DEEPSEEK_API_KEY=... node dist/cli.js serve
+DEEPSEEK_API_KEY=... TYPESAFE_API_KEY=... node dist/cli.js serve
 ```
 
 Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DATA_DIR`.
@@ -163,9 +166,13 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `src/prompt/layout.ts` — sabit prompt ve değişken kuyruk
 - `src/prompt/compact.ts` — system mesajını bozmayan sıkıştırma
 - `src/tools/create-tools.ts` — v1 araç sırası
-- `src/tools/toolset.ts` — v2 prompt damgası ve tarayıcı araçlarının eklenmesi
-- `src/tools/browser-tools.ts` — snapshot, ref, sekme, doğrulama
+- `src/tools/toolset.ts` — v2 tarayıcı damgası ve v3 Jev damgası
+- `src/tools/browser-tools.ts` — snapshot, ref, sekme, doğrulama, `jev_run`
 - `src/browser/session.ts` — kalıcı Playwright profili
+- `src/browser/semantic.ts` — accessibility ağacı ve ref ile tıklama, doldurma, select
+- `src/browser/jev-run.ts` — TypeSafe `jev-latest` karar döngüsü
+- `src/browser/jev-delegation.ts` — sınırlı hedef, bütçe ve taze doğrulama
+- `test/jev-live.test.ts` — `LINCO_JEV_LIVE=1` olmadan atlanan tek canlı TypeSafe formu
 - `src/browser/navigation-policy.ts` — özel ağ reddi
 - `src/tools/files.ts`, `local-computer.ts`, `http-browser.ts`, `code-mode.ts`, `agent-tools.ts`
 - `src/security/policy.ts`, `workspace.ts`

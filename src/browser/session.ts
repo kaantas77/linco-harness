@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { BrowserContext, Page } from "playwright";
 import { NavigationBlocked, assertNavigable } from "./navigation-policy.js";
+import { clickBackend, fillBackend, formatSemanticSnapshot, readSemantic, selectBackend } from "./semantic.js";
 
 export interface BrowserTarget {
   workspaceRoot: string;
@@ -23,6 +24,7 @@ interface LiveSession {
   context: BrowserContext;
   page: Page;
   snapshotId: number;
+  refs: Map<string, number>;
 }
 
 const sessions = new Map<string, LiveSession>();
@@ -44,39 +46,59 @@ export async function snapshotBrowser(target: BrowserTarget): Promise<PageShot> 
   return snapshot(requireSession(target), target);
 }
 
-export async function clickBrowser(target: BrowserTarget, input: { ref?: string; snapshotId?: number; role?: string; name?: string }): Promise<string> {
+export async function clickBrowser(
+  target: BrowserTarget,
+  input: { ref?: string; snapshotId?: number; role?: string; name?: string },
+  observe = true,
+): Promise<string> {
   const session = requireSession(target);
-  const locator = resolve(session, input);
-  if (!input.ref && (await locator.count()) !== 1) throw new Error("element is not unique");
-  await locator.click({ timeout: 5_000 });
+  if (input.ref) await clickBackend(session.page, backendFor(session, input));
+  else {
+    const locator = resolveRole(session, input);
+    if ((await locator.count()) !== 1) throw new Error("element is not unique");
+    await locator.click({ timeout: 5_000 });
+  }
   await session.page.waitForLoadState("domcontentloaded", { timeout: 5_000 }).catch(() => undefined);
-  session.snapshotId = 0;
-  return `clicked ${session.page.url()}`;
+  return afterAction(session, target, observe, "clicked");
 }
 
 export async function fillBrowser(
   target: BrowserTarget,
   input: { ref?: string; snapshotId?: number; role?: string; name?: string; text: string },
+  observe = true,
 ): Promise<string> {
   const session = requireSession(target);
-  const locator = resolve(session, input);
-  if (!input.ref && (await locator.count()) !== 1) throw new Error("element is not unique");
-  await locator.fill(input.text, { timeout: 5_000 });
-  session.snapshotId = 0;
-  return "filled";
+  if (input.ref) await fillBackend(session.page, backendFor(session, input), input.text);
+  else {
+    const locator = resolveRole(session, input);
+    if ((await locator.count()) !== 1) throw new Error("element is not unique");
+    await locator.fill(input.text, { timeout: 5_000 });
+  }
+  return afterAction(session, target, observe, "filled");
+}
+
+export async function selectBrowser(
+  target: BrowserTarget,
+  input: { ref?: string; snapshotId?: number; option: string },
+  observe = true,
+): Promise<string> {
+  const session = requireSession(target);
+  if (!input.ref) throw new Error("a ref from the latest semantic snapshot is required");
+  await selectBackend(session.page, backendFor(session, input), input.option);
+  return afterAction(session, target, observe, "selected");
 }
 
 export async function pressBrowser(target: BrowserTarget, key: string): Promise<string> {
   const session = requireSession(target);
   await session.page.keyboard.press(key);
-  session.snapshotId = 0;
+  invalidate(session);
   return `pressed ${key}`;
 }
 
 export async function scrollBrowser(target: BrowserTarget, direction: "up" | "down"): Promise<string> {
   const session = requireSession(target);
   await session.page.mouse.wheel(0, direction === "up" ? -600 : 600);
-  session.snapshotId = 0;
+  invalidate(session);
   return `scrolled ${direction}`;
 }
 
@@ -96,7 +118,7 @@ export async function tabsBrowser(
     const page = await session.context.newPage();
     session.page = page;
     await goto(session, target, input.url);
-    session.snapshotId = 0;
+    invalidate(session);
     return `opened ${page.url()}`;
   }
   const pages = session.context.pages();
@@ -109,12 +131,12 @@ export async function tabsBrowser(
     const next = rest[rest.length - 1];
     if (!next) throw new Error("last tab closed");
     session.page = next;
-    session.snapshotId = 0;
+    invalidate(session);
     return `closed tab ${index}`;
   }
   await page.bringToFront();
   session.page = page;
-  session.snapshotId = 0;
+  invalidate(session);
   return `selected ${page.url()}`;
 }
 
@@ -177,7 +199,15 @@ async function acquire(target: BrowserTarget): Promise<LiveSession> {
   }
   const lockPath = `${key}.lock`;
   takeLock(lockPath, target.taskId);
-  const reserved = { taskId: target.taskId, profile: key, lockPath, context: undefined as unknown as BrowserContext, page: undefined as unknown as Page, snapshotId: 0 };
+  const reserved = {
+    taskId: target.taskId,
+    profile: key,
+    lockPath,
+    context: undefined as unknown as BrowserContext,
+    page: undefined as unknown as Page,
+    snapshotId: 0,
+    refs: new Map<string, number>(),
+  };
   sessions.set(key, reserved);
   try {
     const { chromium } = await import("playwright");
@@ -218,6 +248,10 @@ async function acquire(target: BrowserTarget): Promise<LiveSession> {
   }
 }
 
+export function requireOpenBrowser(target: BrowserTarget): void {
+  requireSession(target);
+}
+
 function requireSession(target: BrowserTarget): LiveSession {
   if (target.signal.aborted) throw new Error("cancelled");
   const profile = path.join(target.workspaceRoot, ".linco", "browser");
@@ -230,32 +264,47 @@ function requireSession(target: BrowserTarget): LiveSession {
 async function goto(session: LiveSession, target: BrowserTarget, raw: string): Promise<void> {
   const url = await assertNavigable(raw);
   await session.page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 15_000, signal: target.signal });
-  session.snapshotId = 0;
+  invalidate(session);
 }
 
 async function snapshot(session: LiveSession, target: BrowserTarget): Promise<PageShot> {
-  const body = await session.page.ariaSnapshot({ mode: "ai", timeout: 5_000, signal: target.signal });
-  session.snapshotId += 1;
-  const title = await session.page.title();
-  const url = session.page.url();
+  if (target.signal.aborted) throw new Error("cancelled");
+  const read = await readSemantic(session.page);
+  if (read.humanVerification) throw new Error("USER_TAKEOVER_REQUIRED: a password, one-time code, or challenge is on the page");
+  session.snapshotId = Math.abs(session.snapshotId) + 1;
+  session.refs = new Map(read.elements.map((element) => [element.ref, element.backendNodeId]));
   return {
     snapshotId: session.snapshotId,
-    title,
-    url,
-    text: [`Semantic browser snapshot #${session.snapshotId} — ${title}: ${url}`, body].join("\n"),
+    title: read.title,
+    url: read.url,
+    text: formatSemanticSnapshot(session.snapshotId, read),
   };
 }
 
-function resolve(session: LiveSession, input: { ref?: string; snapshotId?: number; role?: string; name?: string }) {
-  if (input.ref) {
-    if (input.snapshotId !== session.snapshotId || session.snapshotId === 0) {
-      throw new Error("ref is stale; take a new browser_snapshot");
-    }
-    return session.page.getByRef(input.ref);
+async function afterAction(session: LiveSession, target: BrowserTarget, observe: boolean, label: string): Promise<string> {
+  invalidate(session);
+  if (!observe) return label;
+  const shot = await snapshot(session, target);
+  return shot.text;
+}
+
+function backendFor(session: LiveSession, input: { ref?: string; snapshotId?: number }): number {
+  if (!input.ref || input.snapshotId !== session.snapshotId || session.snapshotId === 0) {
+    throw new Error("that snapshotId is stale; take a new browser_snapshot");
   }
+  const backend = session.refs.get(input.ref);
+  if (!backend) throw new Error("that snapshotId is stale; take a new browser_snapshot");
+  return backend;
+}
+
+function resolveRole(session: LiveSession, input: { role?: string; name?: string }) {
   if (!input.role || !input.name) throw new Error("a ref or a role and name is required");
-  const locator = session.page.getByRole(input.role as never, { name: input.name, exact: true });
-  return locator;
+  return session.page.getByRole(input.role as never, { name: input.name, exact: true });
+}
+
+function invalidate(session: LiveSession): void {
+  session.refs.clear();
+  if (session.snapshotId > 0) session.snapshotId = -session.snapshotId;
 }
 
 function takeLock(lockPath: string, taskId: string): void {

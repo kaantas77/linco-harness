@@ -12,6 +12,7 @@ import { compactForRequest } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
+import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
 import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
 import { HttpBrowserProvider } from "../tools/http-browser.js";
@@ -365,6 +366,7 @@ export class Harness {
         this.notify(task, "Görev hata verdi", message);
       }
     } finally {
+      closeJevTask(task.id);
       await closeTaskBrowser(task.id);
       this.aborts.delete(task.id);
     }

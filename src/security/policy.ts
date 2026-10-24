@@ -34,6 +34,7 @@ function riskFor(toolName: string): Risk {
     case "plan_write":
       return "write";
     case "web_fetch":
+    case "jev_run":
       return "network";
     case "code_run":
     case "shell_exec":

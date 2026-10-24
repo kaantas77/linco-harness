@@ -2,7 +2,7 @@
 
 Linco Harness, Pi Agent döngüsünün üstündeki backend'dir. Model çağrısını ve araç yürütmesini Pi yapar. Oturum, worker havuzu, araç politikası, bellek, skill, otomasyon ve maliyet kaydı Linco'ya aittir.
 
-Bu depo faz 3'tedir. Yeni oturumlar Playwright profilini `workspace/.linco/browser` altında açar. `web_fetch` durur. Eski oturumlar v1 araç listesinde kalır.
+Bu depo faz 3'tedir. Yeni oturumlar Playwright profilini `workspace/.linco/browser` altında açar ve sınırlı tarayıcı işini `jev_run` ile TypeSafe `jev-latest` modeline sorar. Anahtar `TYPESAFE_API_KEY`dir. Anahtar yoksa araç çalışmaz ve başarı bildirmez. `web_fetch` durur. Eski v1 oturumlar tarayıcı aracı almaz. Yalnızca v2 damgası olan oturum `jev_run` almaz.
 
 ## Çalıştırma
 
