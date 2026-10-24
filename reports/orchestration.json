@@ -1,0 +1,142 @@
+{
+  "createdAt": "2026-10-24T04:02:04.242Z",
+  "mode": "offline",
+  "performanceClaim": "none",
+  "scenarios": [
+    {
+      "id": "parallel",
+      "ok": true,
+      "durationMs": 452,
+      "workerCount": 2,
+      "parentStatus": "succeeded",
+      "overlapped": true,
+      "parentWaitMs": 396,
+      "childMs": [
+        394,
+        392
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "counts": {
+        "succeeded": 3,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "detail": "parent resumed once and both children finished"
+    },
+    {
+      "id": "sequential",
+      "ok": true,
+      "durationMs": 816,
+      "workerCount": 1,
+      "parentStatus": "succeeded",
+      "overlapped": false,
+      "parentWaitMs": 777,
+      "childMs": [
+        388,
+        388
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "counts": {
+        "succeeded": 3,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "detail": "parent resumed once and both children finished"
+    },
+    {
+      "id": "failure",
+      "ok": true,
+      "durationMs": 45,
+      "workerCount": 2,
+      "parentStatus": "succeeded",
+      "overlapped": null,
+      "parentWaitMs": 3,
+      "childMs": [
+        1,
+        1
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "counts": {
+        "succeeded": 2,
+        "failed": 1,
+        "cancelled": 0
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "cancel",
+      "ok": true,
+      "durationMs": 68,
+      "workerCount": 2,
+      "parentStatus": "cancelled",
+      "overlapped": null,
+      "parentWaitMs": null,
+      "childMs": [
+        8,
+        6
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "counts": {
+        "succeeded": 0,
+        "failed": 0,
+        "cancelled": 3
+      },
+      "detail": "passed"
+    },
+    {
+      "id": "restart",
+      "ok": true,
+      "durationMs": 25,
+      "workerCount": 2,
+      "parentStatus": "succeeded",
+      "overlapped": null,
+      "parentWaitMs": null,
+      "childMs": [
+        0
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "costUsd": 0
+      },
+      "counts": {
+        "succeeded": 2,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "detail": "passed"
+    }
+  ],
+  "notes": [
+    "Scripted model. These rows are not DeepSeek latency, tokens, cache, or cost.",
+    "Parallel and sequential rows sleep 350 ms inside each child. Wall clock includes process and SQLite overhead.",
+    "Children share the parent workspace. This phase does not give them separate directories.",
+    "A crashed running task is still not reaped. Wake is a single conditional update from waiting_children."
+  ]
+}

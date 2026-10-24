@@ -1,6 +1,6 @@
-# Linco Harness — faz 3 devir notu
+# Linco Harness — faz 4 devir notu
 
-Bu metin, 22 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ekledi. `web_fetch` ve eski oturumların araç listesi duruyor.
+Bu metin, 24 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. `buildStablePrompt` baytları, araç sırası ve `task_wait` açıklama metni aynı kaldı. `web_fetch` ve eski oturumların araç listesi duruyor.
 
 Kod: `linco-harness/` (bu klasörün yanında Pi, DeepSeek Harness, Hermes ve NeMo duruyor; onlar referans. Yeni depo sadece `linco-harness`).
 
@@ -24,7 +24,7 @@ Dosya yolları `realpath` ile çalışma alanına kilitli. Sembolik link kaçı�
 
 `web_fetch` HTTP gövdesinin metnidir. Script çalıştırmaz. `169.254.169.254` engellidir. `code_run` Node `vm` içinde async JavaScript çalıştırır. `require` ve `process` yoktur. Araçlar `tools.fs_list({ path: "." })` biçiminde çağrılır. İç çağrılar aynı onay kapısından geçer. Bu, DeepSeek code mode'unun Linco aracı olarak ilk hali. PTC runtime kopyası değil. Güvenlik sınırı da değil. Sınır, araç politikası.
 
-`task_spawn` çocuk görevi ayrı oturuma koyar, aynı çalışma alanını kullanır. Çocuk çocuk doğuramaz. Üst sınır 8. `task_wait` en fazla 20 saniye bakar. Tek worker ile çocuk, ebeveyn bitmeden ilerlemez. Varsayılan worker sayısı 2'dir. Test, iki kabuk komutunun aynı anda örtüştüğünü gördü.
+`task_spawn` çocuk görevi ayrı oturuma koyar, aynı çalışma alanını kullanır. Çocuk çocuk doğuramaz. Üst sınır 8. Çocuklar ayrı dizin almaz. İki çocuk aynı dosyaya yazarsa sonuç yarışır. `task_wait` çocuk bitmişse raporunu döner. `waitMs` tam 0 ise yalnızca duruma bakar ve ebeveyni park etmez. Değer verilmezse veya pozitifse ve çocuk hâlâ açıksa ebeveyn park eder. Ayrıntı aşağıdaki çocuk görev bölümündedir. Varsayılan worker sayısı 2'dir.
 
 `plan_write` görev üzerinde bir kontrol listesi tutar. Ayrı bir plan modu yok.
 
@@ -44,13 +44,13 @@ Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ expe
 
 ## Test
 
-`npm test`: 38 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
+`npm test`: 39 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
 `npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npx playwright install --with-deps chromium`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
 
-GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 38 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur.
+GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 39 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur.
 
 ## Canlı ölçüm
 
@@ -95,6 +95,18 @@ Yerel test, `http://127.0.0.1` üzerindeki bir formda ref ile e-postayı yazıp 
 
 Navigasyon `http` ve `https` ile sınırlı. Loopback serbest. Özel ağ, link-local ve metadata hostları reddedilir. Bu, `SECURITY.md` içindeki `web_fetch` SSRF maddesini kapatmaz. DNS yeniden bağlama ve üretim izolasyonu duruyor. Tarayıcı yerel geliştirme içindir.
 
+## Çocuk görev
+
+Durum makinesi: `queued → running → waiting_children → queued → running → succeeded`. Başarısız veya iptal edilen çocuk da ebeveyni uyandırır. Ebeveyn o hatayı rapor olarak görür ve sonsuza kadar beklemez. Çocuk `waiting_approval` ise terminal sayılmaz. Kimse onaylamazsa ebeveyn parkta kalır.
+
+`task_wait` artık worker içinde uyumaz. Çocuk açıksa araç sonucu `LINCO_WAIT <görev>` olur, ebeveyn `waiting_children` yazılır ve `worker_id` boşalır. Model bu işareti görmez. Çocuk bitince `finishTask` ebeveyni uyandırır. Ebeveyn park satırına yazılmadan çocuk bittiyse, parkın hemen ardından aynı uyanış bir kez daha bakar. Uyanış tek koşullu `UPDATE`'tir: durum hâlâ `waiting_children` ve listedeki her çocuk terminal ise satır `queued` olur ve checkpoint `resumeChildren` taşır. İki çocuk aynı anda bitse de ikinci çağrı satırı değişmiş bulur.
+
+Devam aynı görev ve aynı Pi transkriptidir. `agent.continue()` yeni kullanıcı mesajı eklemez. Eski araç çağrıları yeniden çalışmaz. Çocuk yeniden doğmaz. Park edilmiş sonuç, devam etmeden önce çocuk raporuna çevrilir: durum, kırpılmış sonuç, hata, süre, token ve maliyet. `waitForTask` ve `waitMs` ile bekleyen HTTP/CLI çağrısı, ebeveyn `waiting_children` iken beklemeye devam eder ve görev bitince sonucu verir. Onay bekleyen görev yine hemen döner. Kullanıcı o kararı verecektir.
+
+İptal, ebeveyn `running` değilse onu `cancelled` yapar, sonra kuyruktaki ve çalışan çocukları iptal eder. Çalışan çocuğun kabuğu görev sinyalinden kesilir. Süreç yeniden açılınca `start()`, çocukları bitmiş `waiting_children` satırlarını bir kez uyandırır. `running` iken çöken satır toplanmaz.
+
+Ölçüm `reports/orchestration.json` ve `reports/orchestration.md`. Mod `offline`. `performanceClaim` none. Beş senaryo da scripted modeldir. DeepSeek token'ı, cache'i ve maliyeti ölçülmedi. Hepsi sıfırdır. Paralel satır iki worker ve 350 ms uyku kullanır. İki çocuk örtüşür. Tek worker'da aynı uykular örtüşmez. Süreler duvar saatidir ve süreç ile SQLite payını içerir. Bu bir model sıralaması değildir. Başarısız çocuk ebeveyni uyandırır ve transkriptte her iki rapor da durur. İptal, ebeveyni ve çocukları `cancelled` yapar. Yeniden açılış, ebeveyni bir model çağrısıyla ve tek kullanıcı mesajıyla bitirir.
+
 ## Üretim engeli
 
 `SECURITY.md` dört maddeyi ayırır. Hepsi üretim kapısını kapatır: HTTP'de kimlik doğrulaması yok, `web_fetch` özel adreslere ve yönlendirme sonrası adrese açık, kabuk `sh -c` artı ifade filtresi, çoklu süreçte kira ve transkript çiti yok. Aynı satırın iki worker tarafından alınması, koşullu `UPDATE` ile engelli. Bu, çökünce `running` kalan işi geri almaz.
@@ -110,7 +122,7 @@ DeepSeek Harness, Hermes ve NeMo kaynak ağaçları bu depoya kopyalanmadı. Ü�
 - Birden fazla makine. Worker'lar aynı sürecin içinde.
 - Vektör bellek, Hermes FTS, kullanıcıya gösterilen bellek arayüzü. API var, ekran yok.
 - Hermes'teki tam cron ifadesi, kanal bildirimleri, gateway, ACP.
-- DeepSeek'in PTC runtime'ı, goal/plan inceleme akışı, LSP, spill, subagent ağacı.
+- DeepSeek'in PTC runtime'ı, goal/plan inceleme akışı, LSP, spill. Çocuk görev bir düzeydir. Çocuk, çocuk doğuramaz. Ayrı çalışma dizini yoktur.
 - NeMo değerlendirme koşusu. Yalnızca dışa aktarılan iz var.
 - DeepSeek Harness ile aynı senaryoların karşılaştırması. Bu faz yalın Pi ile Linco'yu ölçtü. Üçüncü ağaç koşulmadı.
 - Mevcut ürünün Hermes yolu kapatılmadı. Bu depo onun yerine geçmeye hazır bir çekirdek. Taşıma ayrı iş.
@@ -123,13 +135,13 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 2. Cache alanları ayrıldı. `secondCallCacheRead` ikinci model çağrısıdır. `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk çağrısıdır. İkincisi bu eski raporda etiketli değildir. Linco'nun kayıtlı veritabanında o değer 1920'dir. Yeni senaryoların canlı koşusu anahtar olmadan yapılmadı.
 
-3. Tarayıcı ve Jev kuruldu. Ayrıntı ve 2026-10-24 canlı Jev sayıları yukarıdaki bölümde. Canlı DeepSeek tarayıcı maliyeti yoktur. Sıradaki ürün işi, DeepSeek Harness'tan kopyalamadan, mevcut kuyruk üstüne subagent ve planlamadır.
+3. Tarayıcı ve Jev kuruldu. Ayrıntı ve 2026-10-24 canlı Jev sayıları yukarıdaki bölümde. Canlı DeepSeek tarayıcı maliyeti yoktur. Bu fazda Jev'e dokunulmadı.
 
 4. Kabuk izolasyonu. `SECURITY.md` içindeki üretim engeli. İfade filtresini sıkılaştırmak yetmez. Süreç sandbox'ı gerekir. OpenShell bu sırada yok.
 
-5. Çocuk görev. `task_spawn` / `task_wait` ilk kesit. Eksik olan, ebeveynin worker'ı kilitlemeden çocuğun sonucunu alması ve birden fazla çocuğun planlanması. Bunu DeepSeek subagent paketini yapıştırarak değil, mevcut kuyruk üstüne kur.
+5. Çocuk görev kuruldu. Ebeveyn worker'ı bırakır, çocuk bitince aynı transkriptten devam eder. Ayrıntı yukarıdaki bölümde. Sıradaki ürün işi plandır. Derin bir çocuk ağacı ve çocuk başına ayrı dizin bu fazda yoktur.
 
-6. Plan. `plan_write` duruyor. İkinci adım, bitiş kriteri olan bir plan ve plan dışına çıkınca durma. Yine ölç.
+6. Plan. `plan_write` duruyor. Sıradaki adım, bitiş kriteri olan bir plan ve plan dışına çıkınca durma. Yine ölç.
 
 7. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
@@ -159,7 +171,8 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 
 ## Dosya haritası
 
-- `src/agent/runtime.ts` — kuyruk, worker, Pi Agent, onay, devam
+- `src/agent/runtime.ts` — kuyruk, worker, Pi Agent, onay, çocuk parkı ve devam
+- `src/agent/children.ts` — park işareti, çocuk raporu, devam etmeden önce sonuçların değişimi
 - `src/llm/deepseek.ts` — Pi DeepSeek sağlayıcısı
 - `src/llm/scripted.ts` — test ve çevrimdışı bench modeli
 - `src/llm/usage.ts` — cache hit oranı
@@ -183,6 +196,9 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `src/bench/compare.ts` — canlı Linco ve yalın Pi koşusu
 - `src/bench/scenarios.ts` — dosya, çok adım, kod ve aynı oturum senaryoları
 - `src/bench/report.ts` — JSON ve Markdown
+- `src/bench/orchestration.ts` — scripted çocuk senaryoları
+- `test/orchestrate.test.ts` — park, örtüşme, hata, iptal, tek uyanış
+- `reports/orchestration.json`, `reports/orchestration.md` — `performanceClaim: none`
 - `SECURITY.md` — üretime geçişi durduran dört madde
 - `src/observe/nemo.ts`
 - `skills/file-ops`, `skills/web-research`

@@ -4,6 +4,7 @@ export type TaskStatus =
   | "queued"
   | "running"
   | "waiting_approval"
+  | "waiting_children"
   | "succeeded"
   | "failed"
   | "cancelled";
@@ -39,6 +40,10 @@ export interface PlanStep {
 
 export interface TaskCheckpoint {
   continuation?: string;
+  /** Child task ids the parent is parked on. */
+  waitFor?: string[];
+  /** Resume the saved transcript instead of sending the user message again. */
+  resumeChildren?: boolean;
 }
 
 export interface Task {

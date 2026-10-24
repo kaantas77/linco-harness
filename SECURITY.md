@@ -38,4 +38,6 @@ Bu, çöken worker için kira değildir. Süreç ölürse satır `running` kalı
 
 Transkript yazımı da süreçler arasında kilitli değildir. İki süreç aynı SQLite dosyasını açarsa, aynı oturumun transkriptini sırayla ezebilir. WAL ve `busy_timeout` yazma çakışmasını bekletir. Oturum sahipliğini tek yazıcıya bağlayan bir çit yoktur.
 
-Üretim engeli: ikinci bir süreç aynı kuyruğu güvenle tüketemez. Tek süreç içindeki koşullu güncelleme, çökme sonrası takılan işi ve çapraz süreç transkript yazımını çözmez.
+`waiting_children` uyanışı da aynı türden bir koşullu güncellemedir. Durum hâlâ `waiting_children` ise ve beklenen her çocuk bitmişse satır bir kez `queued` olur. İkinci çağrı satırı değişmiş görür ve bir şey yapmaz. Bu, `running` iken ölen işi toplamaz. Onu geri alan bir kira yoktur. Transkript yazımı da değişmedi. İki süreç aynı oturumun transkriptini sırayla ezebilir.
+
+Üretim engeli: ikinci bir süreç aynı kuyruğu güvenle tüketemez. Tek süreç içindeki koşullu güncelleme, çökme sonrası takılan işi ve çapraz süreç transkript yazımını çözmez. Tek süreçte park, uyanış ve devam doğrudur.

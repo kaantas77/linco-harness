@@ -12,6 +12,7 @@ import { compactForRequest } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
+import { childReport, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
 import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
@@ -52,6 +53,7 @@ export class Harness {
   start(): void {
     if (this.running) return;
     this.running = true;
+    for (const parent of this.db.listByStatus("waiting_children")) this.db.wakeParent(parent.id);
     for (let index = 0; index < this.config.workerCount; index += 1) {
       this.workerLoops.push(this.loop(`worker_${index + 1}`));
     }
@@ -105,6 +107,10 @@ export class Harness {
     if (task.status === "succeeded" || task.status === "failed" || task.status === "cancelled") return task;
     this.aborts.get(taskId)?.abort();
     if (task.status !== "running") this.db.finishTask(taskId, "cancelled", { error: "cancelled" });
+    for (const child of this.db.listChildren(taskId)) {
+      if (child.status === "succeeded" || child.status === "failed" || child.status === "cancelled") continue;
+      this.cancel(child.id);
+    }
     return this.requireTask(taskId);
   }
 
@@ -201,7 +207,7 @@ export class Harness {
     const started = Date.now();
     for (;;) {
       const task = this.requireTask(taskId);
-      if (task.status !== "queued" && task.status !== "running") return task;
+      if (task.status !== "queued" && task.status !== "running" && task.status !== "waiting_children") return task;
       if (Date.now() - started > timeoutMs) return task;
       await sleep(20);
     }
@@ -236,12 +242,32 @@ export class Harness {
   private async execute(_workerId: string, task: Task): Promise<void> {
     const abort = new AbortController();
     this.aborts.set(task.id, abort);
-    const run = { waitingApproval: false, firstResponseMs: undefined as number | undefined, turn: 0 };
+    const run = { waitingApproval: false, firstResponseMs: task.firstResponseMs ?? undefined, turn: 0 };
+    const waiting = new Set<string>();
     const started = Date.now();
     let agent: Agent | undefined;
     try {
       const session = this.db.getSession(task.sessionId);
       if (!session) throw new Error(`missing session ${task.sessionId}`);
+      const resumeChildren = task.checkpoint?.resumeChildren === true;
+      let transcript = this.db.getTranscript(session.id);
+      if (resumeChildren) {
+        transcript = rewriteWaitResults(transcript, (childId) => {
+          const child = this.db.getTask(childId);
+          if (!child || child.userId !== task.userId || child.parentId !== task.id) return undefined;
+          return childReport(this.db, child);
+        });
+        this.db.setTranscript(session.id, transcript, task.prompt.slice(0, 80));
+        this.db.clearCheckpoint(task.id);
+        this.db.addTrace({
+          taskId: task.id,
+          kind: "orchestration",
+          name: "resume",
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          data: { childIds: task.checkpoint?.waitFor ?? [] },
+        });
+      }
       const llm = await this.llm();
       const host: ToolHost = {
         workspaceRoot: session.workspacePath,
@@ -258,9 +284,11 @@ export class Harness {
         markApproval: () => {
           run.waitingApproval = true;
         },
+        parkChild: (childId) => {
+          waiting.add(childId);
+        },
       };
       const tools = toolsForPrompt(host, session.systemPrompt);
-      const transcript = this.db.getTranscript(session.id);
       const budget = { turns: 0 };
       agent = new Agent({
         initialState: {
@@ -280,7 +308,7 @@ export class Harness {
         beforeToolCall: async (context) => this.gate(host, context),
         finishTurn: () => {
           budget.turns += 1;
-          if (run.waitingApproval || budget.turns >= this.config.maxTurns) return { action: "end" };
+          if (run.waitingApproval || waiting.size > 0 || budget.turns >= this.config.maxTurns) return { action: "end" };
           return undefined;
         },
         transformContext: async (messages: AgentMessage[]) =>
@@ -325,11 +353,28 @@ export class Harness {
               body: memory.body,
             })),
           });
-      await agent.prompt(prompt);
+      if (resumeChildren) await agent.continue();
+      else await agent.prompt(prompt);
       this.persist(agent, session.id, task.prompt);
       if (abort.signal.aborted) {
+        this.cancelFamily(task.id);
         this.db.finishTask(task.id, "cancelled", { error: "cancelled", firstResponseMs: run.firstResponseMs });
         return;
+      }
+      if (waiting.size > 0) {
+        const parked = this.db.markWaitingChildren(task.id, [...waiting], run.firstResponseMs);
+        if (parked) {
+          this.db.addTrace({
+            taskId: task.id,
+            kind: "orchestration",
+            name: "waiting_children",
+            startedAt: new Date().toISOString(),
+            endedAt: new Date().toISOString(),
+            data: { childIds: [...waiting] },
+          });
+          this.db.wakeParent(task.id);
+          return;
+        }
       }
       if (run.waitingApproval) {
         this.db.markPaused(task.id, run.firstResponseMs);
@@ -353,6 +398,7 @@ export class Harness {
       }
       const message = caught instanceof Error ? caught.message : String(caught);
       if (abort.signal.aborted) {
+        this.cancelFamily(task.id);
         this.db.finishTask(task.id, "cancelled", { error: message, firstResponseMs: run.firstResponseMs });
         return;
       }
@@ -388,6 +434,13 @@ export class Harness {
     });
     host.markApproval();
     return { block: true, terminate: true, reason: assessment.reason };
+  }
+
+  private cancelFamily(taskId: string): void {
+    for (const child of this.db.listChildren(taskId)) {
+      if (child.status === "succeeded" || child.status === "failed" || child.status === "cancelled") continue;
+      this.cancel(child.id);
+    }
   }
 
   private persist(agent: Agent, sessionId: string, prompt: string): void {

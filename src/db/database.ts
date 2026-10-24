@@ -28,6 +28,8 @@ import { cacheHitRatio } from "../llm/usage.js";
 
 type Sql = string | number | null;
 
+const OPEN_TASK = new Set<TaskStatus>(["queued", "running", "waiting_children", "waiting_approval"]);
+
 export class LincoDb {
   private readonly db: DatabaseSync;
 
@@ -206,16 +208,26 @@ export class LincoDb {
     return row?.n ?? 0;
   }
 
+  listChildren(parentId: string): Task[] {
+    return this.many<TaskRow>("SELECT * FROM tasks WHERE parent_id = ? ORDER BY created_at ASC", parentId).map(mapTask);
+  }
+
+  listByStatus(status: TaskStatus): Task[] {
+    return this.many<TaskRow>("SELECT * FROM tasks WHERE status = ? ORDER BY created_at ASC", status).map(mapTask);
+  }
+
   sessionBusy(sessionId: string): boolean {
     const row = this.one<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM tasks WHERE session_id = ? AND status IN ('queued', 'running')",
+      "SELECT COUNT(*) AS n FROM tasks WHERE session_id = ? AND status IN ('queued', 'running', 'waiting_children')",
       sessionId,
     );
     return (row?.n ?? 0) > 0;
   }
 
   countInFlight(): number {
-    const row = this.one<{ n: number }>("SELECT COUNT(*) AS n FROM tasks WHERE status IN ('queued', 'running')");
+    const row = this.one<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM tasks WHERE status IN ('queued', 'running', 'waiting_children')",
+    );
     return row?.n ?? 0;
   }
 
@@ -234,6 +246,7 @@ export class LincoDb {
     status: TaskStatus,
     patch: { resultText?: string; error?: string; firstResponseMs?: number } = {},
   ): void {
+    const current = this.getTask(id);
     this.run(
       `UPDATE tasks
        SET status = ?, result_text = COALESCE(?, result_text), error = ?, first_response_ms = COALESCE(?, first_response_ms),
@@ -246,6 +259,48 @@ export class LincoDb {
       nowIso(),
       id,
     );
+    if (current?.parentId) this.wakeParent(current.parentId);
+  }
+
+  /** Park a running parent. Returns false when the row is no longer running. */
+  markWaitingChildren(id: string, childIds: string[], firstResponseMs?: number): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'waiting_children', worker_id = NULL, checkpoint_json = ?,
+             first_response_ms = COALESCE(?, first_response_ms)
+         WHERE id = ? AND status = 'running'`,
+      )
+      .run(JSON.stringify({ waitFor: childIds } satisfies TaskCheckpoint), firstResponseMs ?? null, id);
+    return result.changes === 1;
+  }
+
+  clearCheckpoint(id: string): void {
+    this.run("UPDATE tasks SET checkpoint_json = NULL WHERE id = ?", id);
+  }
+
+  /**
+   * Queue a parked parent once, only while every waited child is terminal.
+   * A second caller sees status already changed and does nothing.
+   */
+  wakeParent(parentId: string): boolean {
+    const parent = this.getTask(parentId);
+    if (!parent || parent.status !== "waiting_children") return false;
+    const ids = parent.checkpoint?.waitFor ?? [];
+    if (ids.length === 0) return false;
+    for (const id of ids) {
+      const child = this.getTask(id);
+      if (!child || OPEN_TASK.has(child.status)) return false;
+    }
+    const next: TaskCheckpoint = { resumeChildren: true, waitFor: ids };
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'queued', checkpoint_json = ?, error = NULL, worker_id = NULL, finished_at = NULL
+         WHERE id = ? AND status = 'waiting_children'`,
+      )
+      .run(JSON.stringify(next), parentId);
+    return result.changes === 1;
   }
 
   requeueTask(id: string, error: string): void {

@@ -16,4 +16,6 @@ export interface ToolHost {
   computer: ComputerProvider;
   signal: AbortSignal;
   markApproval: () => void;
+  /** Record a child the current turn will park on. Absent outside a live agent run. */
+  parkChild?: (childId: string) => void;
 }

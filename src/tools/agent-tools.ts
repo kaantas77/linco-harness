@@ -1,8 +1,8 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
-import { clip } from "../json.js";
 import { selectMemories } from "../prompt/layout.js";
 import type { MemoryKind, PlanStep } from "../types.js";
+import { childReport, waitMarker } from "../agent/children.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
 import type { ToolHost } from "./host.js";
@@ -111,19 +111,13 @@ export function catalogTools(host: ToolHost): AgentTool[] {
       parameters: Type.Object({ taskId: Type.String(), waitMs: Type.Optional(Type.Number()) }),
       executionMode: "sequential",
       execute: async (_id, params) => {
-        const waitMs = Math.min(Math.max(params.waitMs ?? 0, 0), 20_000);
-        const started = Date.now();
-        for (;;) {
-          const task = host.db.getTask(params.taskId);
-          if (!task || task.userId !== host.userId || task.parentId !== host.taskId) return error("child task not found");
-          if (task.status !== "queued" && task.status !== "running") {
-            return text(clip(task.resultText || task.error || task.status, 4_000), { status: task.status, taskId: task.id });
-          }
-          if (Date.now() - started >= waitMs || host.signal.aborted) {
-            return text(task.status, { status: task.status, taskId: task.id });
-          }
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+        const task = host.db.getTask(params.taskId);
+        if (!task || task.userId !== host.userId || task.parentId !== host.taskId) return error("child task not found");
+        const open = task.status === "queued" || task.status === "running" || task.status === "waiting_children" || task.status === "waiting_approval";
+        if (!open) return text(childReport(host.db, task), { status: task.status, taskId: task.id });
+        if (params.waitMs === 0 || !host.parkChild) return text(task.status, { status: task.status, taskId: task.id });
+        host.parkChild(task.id);
+        return text(waitMarker(task.id), { status: task.status, taskId: task.id, parked: true });
       },
     }),
   ];
