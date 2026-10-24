@@ -5,12 +5,19 @@ import { fileURLToPath } from "node:url";
 import { Harness } from "../src/agent/runtime.js";
 import { loadConfig } from "../src/config.js";
 import { SCRIPT_MODEL, scriptedStream, type ScriptStep } from "../src/llm/scripted.js";
+import type { StreamFn } from "@earendil-works/pi-agent-core";
 
 const skillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../skills");
 
 export async function withHarness(
   run: (harness: Harness) => Promise<void>,
-  options: { steps?: ScriptStep[]; workerCount?: number; compactMaxChars?: number } = {},
+  options: {
+    steps?: ScriptStep[];
+    workerCount?: number;
+    compactMaxChars?: number;
+    compactRequests?: boolean;
+    streamFn?: StreamFn;
+  } = {},
 ): Promise<void> {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "linco-"));
   const harness = new Harness({
@@ -20,10 +27,11 @@ export async function withHarness(
       workerCount: options.workerCount ?? 2,
       schedulerIntervalMs: 60_000,
       compactMaxChars: options.compactMaxChars ?? 180_000,
+      compactRequests: options.compactRequests,
       port: 0,
     }),
     model: SCRIPT_MODEL,
-    streamFn: scriptedStream(options.steps ?? [{ text: "ok" }]),
+    streamFn: options.streamFn ?? scriptedStream(options.steps ?? [{ text: "ok" }]),
   });
   harness.start();
   try {

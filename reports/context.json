@@ -1,0 +1,73 @@
+{
+  "createdAt": "2026-10-24T23:40:54.227Z",
+  "mode": "offline",
+  "model": "scripted",
+  "liveExecuted": false,
+  "performanceClaim": "none",
+  "defaultCompactMaxChars": 180000,
+  "scenarios": [
+    {
+      "id": "short-on",
+      "mode": "on",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 50,
+      "compacted": false,
+      "beforeChars": 0,
+      "afterChars": 0,
+      "beforeTokens": 0,
+      "afterTokens": 0,
+      "recordKeepsCritical": true,
+      "detail": "pear written and the session record kept its earlier text"
+    },
+    {
+      "id": "short-off",
+      "mode": "off",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 43,
+      "compacted": false,
+      "beforeChars": 0,
+      "afterChars": 0,
+      "beforeTokens": 0,
+      "afterTokens": 0,
+      "recordKeepsCritical": true,
+      "detail": "pear written and the session record kept its earlier text"
+    },
+    {
+      "id": "long-on",
+      "mode": "on",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 44,
+      "compacted": true,
+      "beforeChars": 30595,
+      "afterChars": 14946,
+      "beforeTokens": 7649,
+      "afterTokens": 3737,
+      "recordKeepsCritical": true,
+      "detail": "pear written and the session record kept its earlier text"
+    },
+    {
+      "id": "long-off",
+      "mode": "off",
+      "ok": true,
+      "status": "succeeded",
+      "durationMs": 46,
+      "compacted": false,
+      "beforeChars": 0,
+      "afterChars": 0,
+      "beforeTokens": 0,
+      "afterTokens": 0,
+      "recordKeepsCritical": true,
+      "detail": "pear written and the session record kept its earlier text"
+    }
+  ],
+  "notes": [
+    "Scripted rows prove task success and that the SQLite transcript stays intact. They are not DeepSeek token, cache, or dollar figures.",
+    "Token estimates are serialized characters divided by 4.",
+    "The default request budget stays 180000 characters. The long scripted row uses a smaller budget so compaction is observable without a large fixture.",
+    "A short transcript does not compact. Compaction is pair-safe only when the budget is already exceeded.",
+    "LINCO_COMPACT=0 leaves the stored transcript unchanged on the model request."
+  ]
+}

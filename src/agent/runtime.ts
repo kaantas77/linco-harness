@@ -8,11 +8,11 @@ import { createId } from "../ids.js";
 import { clip } from "../json.js";
 import { createDeepSeek } from "../llm/deepseek.js";
 import { SCRIPT_MODEL } from "../llm/scripted.js";
-import { compactForRequest } from "../prompt/compact.js";
+import { planContext } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
-import { goalSuccessBlock } from "./goal.js";
+import { attributeParentTool, goalSuccessBlock } from "./goal.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
@@ -312,8 +312,32 @@ export class Harness {
           if (run.waitingApproval || waiting.size > 0 || budget.turns >= this.config.maxTurns) return { action: "end" };
           return undefined;
         },
-        transformContext: async (messages: AgentMessage[]) =>
-          compactForRequest(messages, { maxChars: this.config.compactMaxChars }),
+        transformContext: async (messages: AgentMessage[]) => {
+          if (!this.config.compactRequests) return messages;
+          const planned = planContext(messages, {
+            maxChars: this.config.compactMaxChars,
+            contextWindow: llm.model.contextWindow,
+          });
+          if (planned.compacted) {
+            const at = new Date().toISOString();
+            this.db.addTrace({
+              taskId: task.id,
+              kind: "context",
+              name: "compact",
+              startedAt: at,
+              endedAt: at,
+              data: {
+                beforeChars: planned.beforeChars,
+                afterChars: planned.afterChars,
+                beforeTokens: planned.beforeTokens,
+                afterTokens: planned.afterTokens,
+                droppedMessages: planned.droppedMessages,
+                shrunkResults: planned.shrunkResults,
+              },
+            });
+          }
+          return planned.messages;
+        },
       });
       agent.subscribe((event) => {
         if (event.type === "message_start" && event.message.role === "assistant" && run.firstResponseMs === undefined) {
@@ -340,7 +364,14 @@ export class Harness {
             name: event.toolName,
             startedAt: new Date(ended - (event.durationMs ?? 0)).toISOString(),
             endedAt: new Date(ended).toISOString(),
-            data: { isError: event.isError, durationMs: event.durationMs ?? null },
+            data: {
+              isError: event.isError,
+              durationMs: event.durationMs ?? null,
+              ...(() => {
+                const goalStepId = attributeParentTool(this.db.getTask(task.id)?.goal ?? null, event.toolName);
+                return goalStepId ? { goalStepId } : {};
+              })(),
+            },
           });
         }
       });

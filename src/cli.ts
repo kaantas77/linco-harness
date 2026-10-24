@@ -1,9 +1,13 @@
 #!/usr/bin/env node
+import fs from "node:fs";
 import path from "node:path";
 import { Harness } from "./agent/runtime.js";
 import { runComparison } from "./bench/compare.js";
+import { renderContextMarkdown, runContextOffline } from "./bench/context.js";
+import { renderContextLiveMarkdown, runContextLive } from "./bench/context-live.js";
 import { offlineRowsToReport, renderBenchMarkdown, writeBenchReport } from "./bench/report.js";
 import { runOfflineBench } from "./bench/runner.js";
+import { redactSecrets } from "./bench/types.js";
 import { loadConfig } from "./config.js";
 import { HarnessServer } from "./server/http.js";
 
@@ -13,7 +17,8 @@ if (!command || command === "help" || command === "--help") {
   console.log(`linco serve [--port 8787] [--data .data]
 linco task --user <name> "<prompt>"
 linco bench [--out reports]
-linco bench --live [--out reports] [--data .data-bench]`);
+linco bench --live [--out reports] [--data .data-bench]
+linco bench --context [--out reports] [--data .data-bench]`);
   process.exit(0);
 }
 
@@ -51,7 +56,23 @@ if (command === "serve") {
 } else if (command === "bench") {
   const config = loadConfig({ dataDir: flagValue(args, "--data") ?? path.resolve(".data-bench") });
   const out = flagValue(args, "--out") ?? path.resolve("reports");
-  if (args.includes("--live")) {
+  if (args.includes("--context")) {
+    const offline = await runContextOffline(config.skillsDir);
+    const offlinePath = writeReport(out, "context", offline, renderContextMarkdown(offline));
+    console.log(renderContextMarkdown(offline));
+    console.log(`wrote ${offlinePath.json}`);
+    console.log(`wrote ${offlinePath.markdown}`);
+    if (config.apiKey) {
+      const live = await runContextLive(config);
+      const livePath = writeReport(out, "context-live", live, renderContextLiveMarkdown(live));
+      console.log(renderContextLiveMarkdown(live));
+      console.log(`wrote ${livePath.json}`);
+      console.log(`wrote ${livePath.markdown}`);
+      process.exitCode = live.liveExecuted && live.summary.some((row) => row.successRate === 0) ? 1 : 0;
+    } else {
+      console.log("live context benchmark skipped: DEEPSEEK_API_KEY is unset");
+    }
+  } else if (args.includes("--live")) {
     const report = await runComparison(config);
     const written = writeBenchReport(out, "live", report);
     console.log(renderBenchMarkdown(report));
@@ -69,6 +90,16 @@ if (command === "serve") {
   }
 } else {
   throw new Error(`unknown command ${command}`);
+}
+
+function writeReport(directory: string, name: string, report: unknown, markdown: string): { json: string; markdown: string } {
+  fs.mkdirSync(directory, { recursive: true });
+  const json = path.join(directory, `${name}.json`);
+  const markdownPath = path.join(directory, `${name}.md`);
+  const safe = JSON.parse(redactSecrets(JSON.stringify(report))) as unknown;
+  fs.writeFileSync(json, `${JSON.stringify(safe, null, 2)}\n`);
+  fs.writeFileSync(markdownPath, redactSecrets(markdown));
+  return { json, markdown: markdownPath };
 }
 
 function positionals(argv: string[]): string[] {

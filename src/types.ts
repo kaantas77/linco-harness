@@ -53,6 +53,8 @@ export interface GoalCriterion {
   check: GoalCheck;
   status: GoalCriterionStatus;
   evidence?: string;
+  /** Trace row that satisfied a tool_ok check. */
+  evidenceTraceId?: string;
 }
 
 export type GoalStepStatus = "pending" | "ready" | "doing" | "done" | "failed" | "replaced" | "blocked";

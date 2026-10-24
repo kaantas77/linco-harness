@@ -127,21 +127,23 @@ export function replan(plan: GoalPlan, stepId: string, drafts: GoalDraftStep[]):
   let additions: GoalStep[];
   try {
     additions = drafts.map((draft) => newStep(draft));
-    validateShape({ ...plan, steps: [...plan.steps, ...additions] });
+    const replaced = plan.steps.map((step) => (step.id === failed.id ? { ...step, status: "replaced" as const } : step));
+    const rebound = rebindUnstarted(replaced, failed.id, additions.map((step) => step.id));
+    validateShape({ ...plan, steps: [...rebound, ...additions] });
+    const note = `replanned ${failed.id}: ${clip(failed.failure ?? "failed", 120)}`;
+    return {
+      plan: refresh({
+        ...plan,
+        steps: [...rebound, ...additions],
+        replans: plan.replans + 1,
+        lastFailureKey: key,
+        replanNotes: [...plan.replanNotes, note].slice(-4),
+      }),
+    };
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : String(caught);
     return { plan, error: message };
   }
-  const note = `replanned ${failed.id}: ${clip(failed.failure ?? "failed", 120)}`;
-  return {
-    plan: refresh({
-      ...plan,
-      steps: [...plan.steps.map((step) => (step.id === failed.id ? { ...step, status: "replaced" as const } : step)), ...additions],
-      replans: plan.replans + 1,
-      lastFailureKey: key,
-      replanNotes: [...plan.replanNotes, note].slice(-4),
-    }),
-  };
 }
 
 export function childPromptFor(step: GoalStep): string {
@@ -183,13 +185,11 @@ function evaluateCriterion(criterion: GoalCriterion, step: GoalStep, lookup: Evi
     return { ...criterion, status: "verified", evidence: `contains text in ${check.path}` };
   }
   if (check.kind === "tool_ok") {
-    const ids = [lookup.taskId, step.childTaskId].filter((id): id is string => Boolean(id));
-    const hit = ids.some((id) =>
-      lookup.db.listTraces(id).some((trace) => trace.kind === "tool" && trace.name === check.tool && !traceIsError(trace.data)),
-    );
+    const traces = toolEvidenceTraces(step, lookup);
+    const hit = selectToolEvidence(step, check.tool, traces);
     return hit
-      ? { ...criterion, status: "verified", evidence: `${check.tool} succeeded` }
-      : { ...criterion, status: "unverified", evidence: `${check.tool} has no successful trace` };
+      ? { ...criterion, status: "verified", evidence: `${check.tool} trace ${hit.id}`, evidenceTraceId: hit.id }
+      : { ...criterion, status: "unverified", evidence: `${check.tool} has no trace for this step`, evidenceTraceId: undefined };
   }
   const childId = step.childTaskId;
   if (!childId) return { ...criterion, status: "pending", evidence: "child is not dispatched" };
@@ -203,6 +203,68 @@ function evaluateCriterion(criterion: GoalCriterion, step: GoalStep, lookup: Evi
     return { ...criterion, status: "unverified", evidence: "child result missed the expected text" };
   }
   return { ...criterion, status: "verified", evidence: `child ${child.id} succeeded` };
+}
+
+/** Steps that have not started follow the replacement instead of the failed step. */
+export function rebindUnstarted(steps: GoalStep[], failedId: string, replacementIds: string[]): GoalStep[] {
+  return steps.map((step) => {
+    if (!step.dependsOn.includes(failedId)) return step;
+    if (step.childTaskId || (step.status !== "pending" && step.status !== "ready")) return step;
+    const dependsOn = [...new Set([...step.dependsOn.filter((id) => id !== failedId), ...replacementIds])];
+    return { ...step, dependsOn };
+  });
+}
+
+export interface ToolEvidenceTrace {
+  id: string;
+  taskId: string;
+  name: string;
+  isError: boolean;
+  goalStepId?: string;
+}
+
+/** A parent tool call counts only when this step is its sole owner. A child call counts only for that child. */
+export function selectToolEvidence(step: GoalStep, tool: string, traces: ToolEvidenceTrace[]): ToolEvidenceTrace | undefined {
+  const matches = traces.filter((trace) => trace.name === tool && !trace.isError);
+  if (step.childTaskId) return matches.find((trace) => trace.taskId === step.childTaskId);
+  return matches.find((trace) => trace.goalStepId === step.id);
+}
+
+/** Tag a parent trace only when one open step asks for that tool. Shared tools stay unattributed. */
+export function attributeParentTool(plan: GoalPlan | null, toolName: string): string | undefined {
+  if (!plan) return undefined;
+  const owners = plan.steps.filter(
+    (step) =>
+      !step.childTaskId &&
+      step.status !== "done" &&
+      step.status !== "replaced" &&
+      step.status !== "failed" &&
+      step.status !== "blocked" &&
+      step.criteria.some((criterion) => criterion.check.kind === "tool_ok" && criterion.check.tool === toolName && criterion.status !== "verified"),
+  );
+  return owners.length === 1 ? owners[0]!.id : undefined;
+}
+
+function toolEvidenceTraces(step: GoalStep, lookup: EvidenceLookup): ToolEvidenceTrace[] {
+  const rows = [
+    ...lookup.db.listTraces(lookup.taskId),
+    ...(step.childTaskId ? lookup.db.listTraces(step.childTaskId) : []),
+  ];
+  return rows
+    .filter((trace) => trace.kind === "tool")
+    .map((trace) => ({
+      id: trace.id,
+      taskId: trace.taskId,
+      name: trace.name,
+      isError: traceIsError(trace.data),
+      ...(goalStepIdOf(trace.data) ? { goalStepId: goalStepIdOf(trace.data) } : {}),
+    }));
+}
+
+function goalStepIdOf(data: unknown): string | undefined {
+  if (!data || typeof data !== "object" || !("goalStepId" in data)) return undefined;
+  const value = (data as { goalStepId?: unknown }).goalStepId;
+  return typeof value === "string" ? value : undefined;
 }
 
 function newStep(draft: GoalDraftStep): GoalStep {

@@ -105,6 +105,7 @@ export async function runOfflineBench(config: Pick<LincoConfig, "dataDir" | "ski
         maxTurns: 8,
         model: "deepseek-flash",
         compactMaxChars: 180_000,
+        compactRequests: true,
         schedulerIntervalMs: 60_000,
       },
       model: SCRIPT_MODEL,

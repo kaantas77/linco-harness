@@ -12,6 +12,8 @@ export interface LincoConfig {
   /** Omitted means the agent default, which is off. */
   thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   compactMaxChars: number;
+  /** When false, the model receives the stored transcript unchanged. */
+  compactRequests: boolean;
   schedulerIntervalMs: number;
 }
 
@@ -30,6 +32,7 @@ export function loadConfig(
     model: overrides.model ?? env.LINCO_MODEL ?? "deepseek-flash",
     apiKey: overrides.apiKey ?? env.DEEPSEEK_API_KEY,
     compactMaxChars: overrides.compactMaxChars ?? numberEnv(env.LINCO_COMPACT_CHARS, 180_000),
+    compactRequests: overrides.compactRequests ?? env.LINCO_COMPACT !== "0",
     schedulerIntervalMs: overrides.schedulerIntervalMs ?? numberEnv(env.LINCO_SCHEDULER_MS, 1_000),
   };
 }

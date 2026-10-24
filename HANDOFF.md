@@ -1,6 +1,6 @@
 # Linco Harness — faz 5 devir notu
 
-Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
+Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. Faz 6, isteğin bağlamını kısalttı ve aynı görevleri açık/kapalı ölçtü. SQLite transkripti durur. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
 
 Kod: `linco-harness/` (bu klasörün yanında Pi, DeepSeek Harness, Hermes ve NeMo duruyor; onlar referans. Yeni depo sadece `linco-harness`).
 
@@ -38,19 +38,19 @@ Bildirimler otomasyon bitişinde ve onay beklerken `notifications` tablosuna dü
 
 İz: her araç çağrısı `traces` tablosunda. `GET /v1/tasks/:id/observe` şeması `linco.observe.v1`. NeMo paketi import edilmedi.
 
-HTTP sunucusu `src/server/http.ts`. Kimlik doğrulaması yok. CLI: `serve`, `task`, `bench`, `bench --live`. `bench` `reports/offline.json` ve `reports/offline.md` yazar. `bench --live` aynı senaryoları Linco ve yalın Pi üzerinde koşar, `reports/live.json` ve `reports/live.md` yazar. Anahtar yoksa canlı rapor `liveExecuted: false` olur, senaryo çalışmaz ve çıkış kodu 0'dır. Canlı senaryo başarısızsa rapor yine yazılır ve çıkış kodu 1'dir.
+HTTP sunucusu `src/server/http.ts`. Kimlik doğrulaması yok. CLI: `serve`, `task`, `bench`, `bench --live`, `bench --context`. `bench` `reports/offline.json` ve `reports/offline.md` yazar. `bench --live` aynı senaryoları Linco ve yalın Pi üzerinde koşar, `reports/live.json` ve `reports/live.md` yazar. `bench --context` scripted bağlam raporunu her zaman yazar. `DEEPSEEK_API_KEY` varsa aynı altı görevi sıkıştırma açık ve kapalı, beş tekrar ve dengeli sırayla koşar ve `reports/context-live.json` yazar. Anahtar yoksa canlı rapor `liveExecuted: false` olur, senaryo çalışmaz ve çıkış kodu 0'dır. Canlı senaryo başarısızsa rapor yine yazılır ve çıkış kodu 1'dir.
 
 Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ experimental uyarısı basar. Çalışıyor. Ayrı bir native sqlite paketi eklemedik.
 
 ## Test
 
-`npm test`: 45 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. `test/resume.test.ts` hatalı devamın aynı transkriptten yeniden denendiğini, devam sırasında işaretin durduğunu ve SIGKILL sonrası açık çocuğun toplanmadığını kontrol eder. `test/plan.test.ts` bağımlılık, paralel adım, eksik kanıt, yeniden plan ve iptal sonrası planın durmasını kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
+`npm test`: 56 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. `test/goal-fix.test.ts` bağımlılık yeniden bağlamasını ve adıma ait araç kanıtını kontrol eder. `test/context.test.ts` araç çifti, gerekçe, kısa transkript ve kayıtta kalan metni kontrol eder. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. `test/resume.test.ts` hatalı devamın aynı transkriptten yeniden denendiğini, devam sırasında işaretin durduğunu ve SIGKILL sonrası açık çocuğun toplanmadığını kontrol eder. `test/plan.test.ts` bağımlılık, paralel adım, eksik kanıt, yeniden plan ve iptal sonrası planın durmasını kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
 `npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npx playwright install --with-deps chromium`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
 
-GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 45 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur. Canlı DeepSeek plan ölçümü yoktur.
+GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 56 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur. Canlı DeepSeek bağlam ölçümü `npm test` içinde yoktur. `linco bench --context` anahtar görünce ayrıca koşar.
 
 ## Canlı ölçüm
 
@@ -119,9 +119,27 @@ Basit görev plan açmadan biter. `plan_write` eski kontrol listesidir ve hedef 
 
 `goal_evidence` dosyayı, araç izini veya çocuk sonucunu kendisi okur. Modelin verdiği "oldu" değeri kabul edilmez. Dosya yoksa kriter `unverified` kalır. Yol çalışma alanının dışına çıkıyorsa `blocked` olur. Zorunlu kriterlerin hepsi `verified` olmadan adım `done` olmaz. Planın açık adımı varken ana görev `succeeded` yazılmaz.
 
-Başarısız adım `goal_replan` ile `replaced` olur ve kayıtta kalır. Bitmiş adımlar değişmez. Yeni adımlar eklenir. Aynı hata ikinci kez planlanmaz. Bütçe varsayılan 2, tavan 3'tür. Bütçe bitince kalan adımlar `blocked` olur ve görev gerekçeyle durur.
+Başarısız adım `goal_replan` ile `replaced` olur ve kayıtta kalır. Bitmiş adımlar değişmez. Yeni adımlar eklenir. Henüz başlamamış (`pending` veya `ready`, çocuğu yok) bir adım eski başarısız kimliği beklemez. Bağımlılığı yeni adımlara taşınır. Birden fazla yedek varsa hepsini bekler. Başlamış adımın bağımlılığı değişmez. Taşıma döngü kuracaksa plan reddedilir ve eski bağımlılık durur. Aynı hata ikinci kez planlanmaz. Bütçe varsayılan 2, tavan 3'tür. Bütçe bitince kalan adımlar `blocked` olur ve görev gerekçeyle durur.
 
-Ölçüm `reports/planning.json` ve `reports/planning.md`. Mod `offline`. `performanceClaim` none. Aynı not yazma işi plan kapalıyken 2 tur, plan açıkken 4 tur sürdü. Scripted girdi 16'ya karşı 32, çıktı 4'e karşı 8. Bu DeepSeek faturası değildir. Kanıtsız "bitti" iddiası plan kapalıyken `succeeded`, plan açıkken `failed` oldu. Paralel iki adım 350 ms uyudu ve örtüştü. Bağımlı ikinci adım birincinin bitişinden önce başlamadı.
+`tool_ok` artık ebeveyndeki herhangi bir başarılı araç çağrısıyla kapanmaz. Çocuğu olan adım yalnızca o çocuğun izini kabul eder. Çocuğu olmayan adım, aynı araç adını isteyen tek açık adımsa ebeveyn izindeki `goalStepId` ile kapanır. İki adım aynı aracı istiyorsa iz etiketsiz kalır ve ikisi de `unverified` durur. Kapatan iz `evidenceTraceId` olarak kriterde saklanır.
+
+Ölçüm `reports/planning.json` ve `reports/planning.md`. Mod `offline`. `performanceClaim` none. Aynı not yazma işi plan kapalıyken 2 tur, plan açıkken 4 tur sürdü. Scripted girdi 16'ya karşı 32, çıktı 4'e karşı 8. Bu DeepSeek faturası değildir. Kanıtsız "bitti" iddiası plan kapalıyken `succeeded`, plan açıkken `failed` oldu. Paralel iki adım 350 ms uyudu ve örtüştü. Bağımlı ikinci adım birincinin bitişinden önce başlamadı. Basit görev yine plansız kalır. Plan açmak bu ölçümde tur sayısını ikiye katladı.
+
+## Bağlam
+
+İstek ile kayıt ayrıdır. `transformContext` yalnızca modele giden mesajları değiştirir. `agent.state.messages` ve SQLite transkripti tam kalır. Büyük araç çıktısı istekte kısalsa da oturum kaydından yeniden okunabilir. Sıkıştırma, kaydı silmez.
+
+Varsayılan karakter bütçesi 180000'dir. Bu sınırın altındaki görevde istek olduğu gibi gider. Model penceresinin yüzde 70'i daha gevşekse karakter bütçesi yine önce tetiklenir. `deepseek-flash` penceresi 1000000 token olduğu için bu fazda asıl kapı 180000 karakterdir. `LINCO_COMPACT=0` sıkıştırmayı kapatır. Eşik düşürülmedi.
+
+Bütçe aşılınca ilk system mesajı aynı nesne olarak kalır. İlk kullanıcı talimatı durur. Sondaki mesajlar durur. Sonda bir araç sonucu varsa, ona ait `toolCall` da kalır. Ortadaki turlar tek `[linco-compaction]` işaretine iner. Tutulan asistan mesajının gerekçe bloğu yerinde kalır. Hâlâ bütçe aşıksa, son araç sonucu hariç eski büyük sonuçlar istek kopyasında kısaltılır. Asıl mesaj değişmez.
+
+Kısa scripted görev sıkışmaz. Uzun scripted satır, ölçüm için 4000 karakterlik bütçe kullanır. Varsayılan 180000 durur. `reports/context.json` modu `offline`, `performanceClaim` none. Token tahmini karakter/4'tür. Bu dosyadaki sıfırlar DeepSeek faturası değildir.
+
+Canlı karşılaştırma 25 Ekim 2026, `deepseek-flash`, beş tekrar, altı görev, açık ve kapalı. `reports/context-live.json` ve `reports/context-live.md`. `liveExecuted` true. `performanceClaim` none. Aynı model, aynı araç listesi, aynı prompt. Her koşu yeni oturumdur. İlk çağrı o oturum için soğuktur. Sağlayıcı, önceki koşunun aynı system prompt ve araç listesini yine de cache'leyebilir. `secondUserTurnCacheRead` ikinci kullanıcı turudur. `secondCallCacheRead` ikinci model çağrısıdır ve çoğu zaman ilk turun araç devamıdır. Tek tekrarlarda senaryo sırası ve önce giden kip yer değiştirir.
+
+On iki hücrenin hepsi 5/5 başarılı oldu. Kayıp bağlam 0. Hatalı araç sonucu 0. Kısa görevler 180000 karakterin altında kaldı, sıkışmadı ve açık ile kapalı aynı işi yaptı. `file-op` medyan maliyeti her iki kipte de $0.00030 civarıdır. Bu medyan sıcak önektir. Örneklemin ilk hücresi, `file-op` açık, 256 cache token okudu ve $0.001469 tuttu.
+
+Uzun transkriptte açık kip her tekrarda 379068 karakteri istekten çıkardı ve başarı 5/5 kaldı. Kayıt durdu. Kapalı kipin ilk tekrarı sıkışmamış metni gönderdi: 48723 cache'siz girdi, $0.015047, 2708 ms. Sonraki aynı metinler cache'e girdi ve medyan $0.000840'a indi. Açık kipin beş maliyeti $0.000329 ile $0.000756 arasındadır. Medyan, soğuk uzun gönderimin yerini tutmaz. Bu örneklem bir sıralama değildir.
 
 ## Üretim engeli
 
@@ -149,7 +167,7 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 1. Canlı taban çizgisi bir kez alındı. Sayılar yukarıdaki ölçüm bölümünde. Bu tek koşu bir sıralama değildir. Toplam süreler birbirine yakındı. Linco'nun faturası bu koşuda daha yüksekti. Araç listesi ve prompt boyutu farklı olduğu için bu bir verimlilik kararı değildir. DeepSeek Harness aynı senaryolarla henüz koşulmadı.
 
-2. Cache alanları ayrıldı. `secondCallCacheRead` ikinci model çağrısıdır. `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk çağrısıdır. İkincisi bu eski raporda etiketli değildir. Linco'nun kayıtlı veritabanında o değer 1920'dir. Yeni senaryoların canlı koşusu anahtar olmadan yapılmadı.
+2. Cache alanları ayrıldı. `secondCallCacheRead` ikinci model çağrısıdır. `secondUserTurnCacheRead` ikinci kullanıcı mesajının ilk çağrısıdır. Faz 2 kaydında ikinci kullanıcı turu 1920'dir. Faz 6 `session-continue` tekrar 0'da ikinci çağrı 4352, ikinci kullanıcı turu 4608'dir. İkisi aynı olay değildir.
 
 3. Tarayıcı ve Jev kuruldu. Ayrıntı ve 2026-10-24 canlı Jev sayıları yukarıdaki bölümde. Canlı DeepSeek tarayıcı maliyeti yoktur. Bu fazda Jev'e dokunulmadı.
 
@@ -157,15 +175,17 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 5. Çocuk görev kuruldu. Ebeveyn worker'ı bırakır, çocuk bitince aynı transkriptten devam eder. Hatalı devam eski kullanıcı mesajını yeniden göndermez. Ayrıntı yukarıdaki bölümde. Derin bir çocuk ağacı ve çocuk başına ayrı dizin yoktur. `running` satırın çöküşten sonra toplanması yoktur.
 
-6. Hedef planı kuruldu. Ayrıntı yukarıdaki bölümde. Sıradaki ürün işi bağlamı kısaltmak ve aynı görevleri canlı DeepSeek ile ölçmektir. Planın kendisi bu fazda canlı ölçülmedi.
+6. Hedef planı kuruldu. Ayrıntı yukarıdaki bölümde. Basit görev plansız kalır.
 
-7. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
+7. Bağlam kısaltması kuruldu. Ayrıntı yukarıdaki bölümde. Varsayılan eşik 180000 karakterde kaldı. Başarıyı düşüren daha sert bir kısaltma açılmadı. Canlı sayılar `reports/context-live.md` içindedir. Bundan sonraki hedef yeni özellik yığmak değildir. Doğruluk, süre ve maliyet bu raporlarla izlenir.
 
-8. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
+8. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
-9. Süreç sınırı. Aynı SQLite kuyruğunu başka bir makinedeki worker'ın alması. API değişmeden. Önce tek makinede ikinci bir süreçle dene. Kira ve transkript çiti `SECURITY.md` içinde üretim engelidir.
+9. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
 
-10. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
+10. Süreç sınırı. Aynı SQLite kuyruğunu başka bir makinedeki worker'ın alması. API değişmeden. Önce tek makinede ikinci bir süreçle dene. Kira ve transkript çiti `SECURITY.md` içinde üretim engelidir.
+
+11. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
 
 ## Doğrulama
 
@@ -180,6 +200,7 @@ Canlı:
 
 ```bash
 DEEPSEEK_API_KEY=... node dist/cli.js bench --live --out reports --data .data-bench
+DEEPSEEK_API_KEY=... node dist/cli.js bench --context --out reports --data .data-bench
 DEEPSEEK_API_KEY=... TYPESAFE_API_KEY=... node dist/cli.js serve
 ```
 
@@ -195,7 +216,7 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `src/llm/scripted.ts` — test ve çevrimdışı bench modeli
 - `src/llm/usage.ts` — cache hit oranı
 - `src/prompt/layout.ts` — sabit prompt ve değişken kuyruk
-- `src/prompt/compact.ts` — system mesajını bozmayan sıkıştırma
+- `src/prompt/compact.ts` — istek bağlamı. Kayıt bundan etkilenmez
 - `src/tools/create-tools.ts` — v1 araç sırası
 - `src/tools/toolset.ts` — v2 tarayıcı damgası ve v3 Jev damgası
 - `src/tools/browser-tools.ts` — snapshot, ref, sekme, doğrulama, `jev_run`
@@ -216,6 +237,12 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `src/bench/report.ts` — JSON ve Markdown
 - `src/bench/orchestration.ts` — scripted çocuk senaryoları
 - `src/bench/planning.ts` — scripted hedef senaryoları ve plan açık/kapalı karşılaştırması
+- `src/bench/context.ts` — scripted bağlam karşılaştırması
+- `src/bench/context-live.ts` — canlı açık/kapalı bağlam karşılaştırması
+- `test/goal-fix.test.ts` — yeniden bağlama ve adıma ait kanıt
+- `test/context.test.ts` — sıkıştırma ve kayıt
+- `reports/context.json`, `reports/context.md` — `performanceClaim: none`
+- `reports/context-live.json`, `reports/context-live.md` — canlı örneklem, `performanceClaim: none`
 - `test/orchestrate.test.ts` — park, örtüşme, hata, iptal, tek uyanış
 - `test/resume.test.ts` — devam işareti, veritabanını yeniden açma, süreç öldürme
 - `test/plan.test.ts` — hedef planı

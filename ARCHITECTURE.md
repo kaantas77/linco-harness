@@ -8,7 +8,7 @@ DeepSeek otomatik prefix cache kullanır. Bu yüzden system prompt ve araç list
 
 Pi, DeepSeek'in `prompt_cache_hit_tokens` alanını `usage.cacheRead` olarak kaydeder. Her model turu `usage_events` tablosuna yazılır. Cache hit oranı `cacheRead / (input + cacheRead + cacheWrite)` olarak durur.
 
-Transkript karakter sınırı aşılırsa yalnızca ortası özetlenir. İlk system mesajının baytları yerinde kalır. Özetten sonraki kısım cache kaçırır. Bu, sıkıştırmanın bedelidir.
+Transkript 180000 karakteri aşınca modele giden kopyanın ortası özetlenir. İlk system mesajı aynı nesne olarak kalır. İlk kullanıcı talimatı, sondaki turlar ve bir araç sonucunun `toolCall` eşi durur. Tutulan asistan mesajının gerekçe bloğu durur. SQLite kaydı kısalmaz. Büyük araç çıktısı istekte kısalsa da oturum kaydındadır. `LINCO_COMPACT=0` bu kopyalamayı kapatır. Eşik düşürülmedi. Özetten sonraki kısım cache kaçırır. Bu, sıkıştırmanın bedelidir. Token tahmini karakter/4'tür.
 
 ## Araçlar
 
@@ -18,7 +18,7 @@ Dosya araçları çalışma alanının dışına, sembolik link dahil, çıkamaz
 
 ## Hedef
 
-Yeni oturumlar v4 araçlarını alır. Eski oturumun `plan_write` listesi durur. Hedef `goal_json` sütunundadır. Bağımlılığı bitmemiş adım kuyruğa girmez. Bağımsız adımlar mevcut çocuk görevleriyle paralel gider. Zorunlu kriter, dosya, araç izi veya çocuk sonucundan doğrulanır. Doğrulanamayan kriter başarılı sayılmaz. Ana görev, açık adım varken `succeeded` olmaz. Başarısız adım yeniden planda `replaced` olarak kalır. Bitmiş adımlar değişmez. Aynı hata ikinci kez planlanmaz. Plan özeti system prompt'a yazılmaz. `goal_status` kısa araç sonucu verir.
+Yeni oturumlar v4 araçlarını alır. Eski oturumun `plan_write` listesi durur. Hedef `goal_json` sütunundadır. Bağımlılığı bitmemiş adım kuyruğa girmez. Bağımsız adımlar mevcut çocuk görevleriyle paralel gider. Zorunlu kriter, dosya, araç izi veya çocuk sonucundan doğrulanır. `tool_ok` yalnızca o adımın çocuğundaki izi, ya da aynı aracı isteyen tek açık adımın `goalStepId` etiketli ebeveyn izini kabul eder. Kapatan iz `evidenceTraceId` olur. Doğrulanamayan kriter başarılı sayılmaz. Ana görev, açık adım varken `succeeded` olmaz. Başarısız adım yeniden planda `replaced` olur. Henüz başlamamış bağımlılar yeni adıma bağlanır. Başlamış adım ve bitmiş adım değişmez. Döngü kuran plan reddedilir. Aynı hata ikinci kez planlanmaz. Plan özeti system prompt'a yazılmaz. `goal_status` kısa araç sonucu verir. Basit görev plan açmaz.
 
 Kabuk bir işletim sistemi sandbox'ı değildir. Seatbelt, Landlock veya OpenShell bu fazda yok.
 
