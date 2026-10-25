@@ -54,16 +54,30 @@ export function scriptedReply(decide: (messages: { role: string }[]) => ScriptSt
   return (_model, context) => finish(decide(context.messages));
 }
 
+/** Keep the event loop free while a scripted turn waits. Heartbeats can still run. */
+export function scriptedDelay(ms: number, step: ScriptStep = { text: "held" }): StreamFn {
+  return () => finishLater(ms, step);
+}
+
 function finish(step: ScriptStep | undefined) {
+  return finishLater(0, step ?? { text: "done" });
+}
+
+function finishLater(ms: number, step: ScriptStep) {
   const stream = createAssistantMessageEventStream();
-  queueMicrotask(() => {
-    const message = messageFromStep(step ?? { text: "done" });
+  const emit = () => {
+    const message = messageFromStep(step);
     stream.push({
       type: "done",
       reason: message.stopReason === "toolUse" ? "toolUse" : "stop",
       message,
     });
-  });
+  };
+  if (ms <= 0) queueMicrotask(emit);
+  else {
+    const timer = setTimeout(emit, ms);
+    timer.unref?.();
+  }
   return stream;
 }
 

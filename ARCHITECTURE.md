@@ -1,6 +1,6 @@
 # Mimari
 
-Linco Harness tek Node sürecidir. İçinde sürekli yaşayan worker'lar vardır. Kullanıcı mesajı bir Hermes süreci veya yeni bir ACP oturumu açmaz. Görev SQLite kuyruğuna yazılır. Boş bir worker aynı oturumda ikinci bir iş yoksa görevi alır, Pi `Agent` oluşturur, oturum transkriptini yükler, işi çalıştırır ve transkripti geri yazar.
+Linco Harness bir veya daha fazla Node sürecidir. Hepsi aynı makinedeki tek SQLite dosyasını kullanır. İçlerinde sürekli yaşayan worker döngüleri vardır. Kullanıcı mesajı yeni bir işletim sistemi süreci açmaz. Görev SQLite kuyruğuna yazılır. `claimTask` işlemi aday seçimini ve sahiplenmeyi tek `BEGIN IMMEDIATE` işleminde yapar. Aynı oturumda iki görev aynı anda `running` olmaz. Sahiplenme `worker_id`, artan `fence`, `lease_until` ve `heartbeat_at` yazar. Canlı döngü kirayı yeniler. Kira dolunca güvenli iş yeniden kuyruğa girer. Belirsiz yan etki `needs_inspection` olur. Eski fence transkripti ve terminal durumu yazamaz. `linco serve` kendi döngülerini de başlatır. `linco worker` yalnız kuyruğu tüketir.
 
 ## Önbellek
 
@@ -24,7 +24,7 @@ Kabuk bir işletim sistemi sandbox'ı değildir. Seatbelt, Landlock veya OpenShe
 
 ## Çok kullanıcı
 
-Her kullanıcının dizini `data/workspaces/<userId>` altındadır. Oturumlar, bellek ve otomasyon kullanıcıya bağlıdır. Aynı oturumda iki görev aynı anda çalışmaz. Farklı oturumlar worker sayısınca paralel çalışır. Süreç hâlâ tek makinededir. Kuyruk tablosu, işi sonra başka bir sürece taşıyabilecek yerdir.
+Her kullanıcının dizini `data/workspaces/<userId>` altındadır. Oturumlar, bellek ve otomasyon kullanıcıya bağlıdır. Aynı oturumda iki görev aynı anda çalışmaz. Farklı oturumlar, aynı makinedeki worker süreçlerince paralel çalışır. Ağ üzerinden paylaşılan kuyruk yoktur.
 
 ## Dışarıda bırakılanlar
 

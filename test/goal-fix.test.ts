@@ -12,6 +12,10 @@ import { withHarness } from "./helpers.js";
 
 const skillsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../skills");
 
+function isStart(data: unknown): boolean {
+  return Boolean(data && typeof data === "object" && (data as { phase?: unknown }).phase === "start");
+}
+
 function draft(id: string, dependsOn: string[] = [], tool = "fs_write"): GoalDraftStep {
   return {
     id,
@@ -113,7 +117,7 @@ describe("runtime tool attribution", () => {
         const session = harness.createSession(user.id);
         const task = await harness.submit(session.id, "set the goal, write the file, check evidence", { waitMs: 5_000 });
         const saved = harness.db.getTask(task.id);
-        const trace = harness.db.listTraces(task.id).find((item) => item.kind === "tool" && item.name === "fs_write");
+        const trace = harness.db.listTraces(task.id).find((item) => item.kind === "tool" && item.name === "fs_write" && !isStart(item.data));
         const data = trace?.data && typeof trace.data === "object" ? (trace.data as { goalStepId?: string }) : {};
         expect(task.status).toBe("succeeded");
         expect(data.goalStepId).toBe("a");
@@ -151,7 +155,7 @@ describe("runtime tool attribution", () => {
         const session = harness.createSession(user.id);
         const task = await harness.submit(session.id, "two steps, one write", { waitMs: 5_000 });
         const saved = harness.db.getTask(task.id);
-        const trace = harness.db.listTraces(task.id).find((item) => item.kind === "tool" && item.name === "fs_write");
+        const trace = harness.db.listTraces(task.id).find((item) => item.kind === "tool" && item.name === "fs_write" && !isStart(item.data));
         const data = trace?.data && typeof trace.data === "object" ? (trace.data as { goalStepId?: string }) : {};
         expect(task.status).toBe("failed");
         expect(data.goalStepId).toBeUndefined();

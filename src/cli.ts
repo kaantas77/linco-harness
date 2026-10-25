@@ -5,6 +5,7 @@ import { Harness } from "./agent/runtime.js";
 import { runComparison } from "./bench/compare.js";
 import { renderContextMarkdown, runContextOffline } from "./bench/context.js";
 import { renderContextLiveMarkdown, runContextLive } from "./bench/context-live.js";
+import { renderDurableMarkdown, runDurableBench } from "./bench/durable.js";
 import { offlineRowsToReport, renderBenchMarkdown, writeBenchReport } from "./bench/report.js";
 import { runOfflineBench } from "./bench/runner.js";
 import { redactSecrets } from "./bench/types.js";
@@ -18,7 +19,9 @@ if (!command || command === "help" || command === "--help") {
 linco task --user <name> "<prompt>"
 linco bench [--out reports]
 linco bench --live [--out reports] [--data .data-bench]
-linco bench --context [--out reports] [--data .data-bench]`);
+linco bench --context [--out reports] [--data .data-bench]
+linco bench --durable [--out reports]
+linco worker [--data .data] [--workers 1]`);
   process.exit(0);
 }
 
@@ -56,7 +59,14 @@ if (command === "serve") {
 } else if (command === "bench") {
   const config = loadConfig({ dataDir: flagValue(args, "--data") ?? path.resolve(".data-bench") });
   const out = flagValue(args, "--out") ?? path.resolve("reports");
-  if (args.includes("--context")) {
+  if (args.includes("--durable")) {
+    const report = await runDurableBench(config.skillsDir);
+    const written = writeReport(out, "durable", report, renderDurableMarkdown(report));
+    console.log(renderDurableMarkdown(report));
+    console.log(`wrote ${written.json}`);
+    console.log(`wrote ${written.markdown}`);
+    process.exitCode = report.cases.every((row) => row.doubleRuns === 0 && row.lostTranscripts === 0) ? 0 : 1;
+  } else if (args.includes("--context")) {
     const offline = await runContextOffline(config.skillsDir);
     const offlinePath = writeReport(out, "context", offline, renderContextMarkdown(offline));
     console.log(renderContextMarkdown(offline));
@@ -88,6 +98,22 @@ if (command === "serve") {
     console.log(`wrote ${written.markdown}`);
     process.exitCode = rows.every((row) => row.ok) ? 0 : 1;
   }
+} else if (command === "worker") {
+  const config = loadConfig({
+    dataDir: flagValue(args, "--data"),
+    workerCount: flagNumber(args, "--workers") ?? 1,
+  });
+  const harness = new Harness({ config });
+  harness.start();
+  console.log(`linco worker ${process.pid} reading ${config.dataDir} with ${config.workerCount} loops`);
+  const stay = setInterval(() => undefined, 60_000);
+  const shutdown = async () => {
+    clearInterval(stay);
+    await harness.stop();
+    process.exit(0);
+  };
+  process.on("SIGINT", () => void shutdown());
+  process.on("SIGTERM", () => void shutdown());
 } else {
   throw new Error(`unknown command ${command}`);
 }
@@ -107,7 +133,7 @@ function positionals(argv: string[]): string[] {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!arg) continue;
-    if (arg === "--user" || arg === "--data" || arg === "--port" || arg === "--out") {
+    if (arg === "--user" || arg === "--data" || arg === "--port" || arg === "--out" || arg === "--workers") {
       index += 1;
       continue;
     }

@@ -13,6 +13,7 @@ import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
+import { recoveryDecision } from "./lease.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
@@ -20,7 +21,7 @@ import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
 import { HttpBrowserProvider } from "../tools/http-browser.js";
 import type { ToolHost } from "../tools/host.js";
 import { LocalComputerProvider } from "../tools/local-computer.js";
-import type { Automation, AutomationKind, Task, TaskKind, User } from "../types.js";
+import type { Automation, AutomationKind, Task, TaskClaim, TaskKind, User } from "../types.js";
 import { lastAssistantText } from "./transcript.js";
 
 export interface HarnessOptions {
@@ -42,6 +43,7 @@ export class Harness {
   private readonly inflight = new Set<Promise<void>>();
   private readonly aborts = new Map<string, AbortController>();
   private timer: NodeJS.Timeout | undefined;
+  private leaseTimer: NodeJS.Timeout | undefined;
 
   constructor(options: HarnessOptions) {
     this.config = options.config;
@@ -54,9 +56,9 @@ export class Harness {
   start(): void {
     if (this.running) return;
     this.running = true;
-    for (const parent of this.db.listByStatus("waiting_children")) this.db.wakeParent(parent.id);
+    this.sweep();
     for (let index = 0; index < this.config.workerCount; index += 1) {
-      this.workerLoops.push(this.loop(`worker_${index + 1}`));
+      this.workerLoops.push(this.loop(`worker_${process.pid}_${index + 1}`));
     }
     this.timer = setInterval(() => {
       try {
@@ -66,11 +68,20 @@ export class Harness {
       }
     }, this.config.schedulerIntervalMs);
     this.timer.unref?.();
+    this.leaseTimer = setInterval(() => {
+      try {
+        this.sweep();
+      } catch {
+        // A locked database retries on the next sweep.
+      }
+    }, Math.max(50, Math.floor(this.config.leaseMs / 3)));
+    this.leaseTimer.unref?.();
   }
 
   async stop(): Promise<void> {
     this.running = false;
     if (this.timer) clearInterval(this.timer);
+    if (this.leaseTimer) clearInterval(this.leaseTimer);
     for (const abort of this.aborts.values()) abort.abort();
     await Promise.allSettled([...this.inflight, ...this.workerLoops]);
     this.db.close();
@@ -225,7 +236,7 @@ export class Harness {
 
   private async loop(workerId: string): Promise<void> {
     while (this.running) {
-      const task = this.db.claimTask(workerId);
+      const task = this.db.claimTask(workerId, this.config.leaseMs);
       if (!task) {
         await sleep(30);
         continue;
@@ -240,9 +251,38 @@ export class Harness {
     }
   }
 
-  private async execute(_workerId: string, task: Task): Promise<void> {
+  private sweep(): void {
+    const now = new Date().toISOString();
+    for (const parent of this.db.listByStatus("waiting_children")) this.db.wakeParent(parent.id);
+    for (const task of this.db.expiredRunning(now)) {
+      const decision = recoveryDecision(this.db.listTraces(task.id));
+      if (!this.db.settleExpired(task.id, task.fence, decision, now)) continue;
+      if (decision === "inspect") {
+        for (const child of this.db.listChildren(task.id)) {
+          if (child.status === "queued") this.db.finishTask(child.id, "cancelled", { error: "parent needs inspection" });
+        }
+      }
+      if (task.parentId) this.db.wakeParent(task.parentId);
+      const at = new Date().toISOString();
+      this.db.addTrace({
+        taskId: task.id,
+        kind: "recovery",
+        name: decision,
+        startedAt: at,
+        endedAt: at,
+        data: { fence: task.fence, workerId: task.workerId },
+      });
+    }
+  }
+
+  private async execute(workerId: string, task: Task): Promise<void> {
+    const claim: TaskClaim = { taskId: task.id, fence: task.fence, workerId };
     const abort = new AbortController();
     this.aborts.set(task.id, abort);
+    const beat = setInterval(() => {
+      if (!this.db.renewLease(task.id, task.fence, workerId, this.config.leaseMs)) abort.abort();
+    }, Math.max(50, this.config.heartbeatMs));
+    beat.unref?.();
     const run = { waitingApproval: false, firstResponseMs: task.firstResponseMs ?? undefined, turn: 0 };
     const waiting = new Set<string>();
     const started = Date.now();
@@ -259,7 +299,9 @@ export class Harness {
           if (!child || child.userId !== task.userId || child.parentId !== task.id) return undefined;
           return childReport(this.db, child);
         });
-        this.db.setTranscript(session.id, transcript, task.prompt.slice(0, 80));
+        if (!this.db.setTranscript(session.id, transcript, task.prompt.slice(0, 80), claim)) {
+          throw new Error("stale worker lost the transcript fence");
+        }
         this.db.addTrace({
           taskId: task.id,
           kind: "orchestration",
@@ -306,7 +348,7 @@ export class Harness {
           attribution: { name: "Linco", url: "https://linco.local", categories: ["cli-agent"] },
           userAgent: { custom: "linco-harness/0.1.0" },
         },
-        beforeToolCall: async (context) => this.gate(host, context),
+        beforeToolCall: async (context) => this.gate(host, context, claim),
         finishTurn: () => {
           budget.turns += 1;
           if (run.waitingApproval || waiting.size > 0 || budget.turns >= this.config.maxTurns) return { action: "end" };
@@ -356,8 +398,19 @@ export class Harness {
           });
           run.turn += 1;
         }
+        if (event.type === "tool_execution_start") {
+          const at = new Date().toISOString();
+          this.db.addTrace({
+            taskId: task.id,
+            kind: "tool",
+            name: event.toolName,
+            startedAt: at,
+            data: { phase: "start", toolCallId: event.toolCallId },
+          });
+        }
         if (event.type === "tool_execution_end") {
           const ended = Date.now();
+          const goalStepId = attributeParentTool(this.db.getTask(task.id)?.goal ?? null, event.toolName);
           this.db.addTrace({
             taskId: task.id,
             kind: "tool",
@@ -365,12 +418,11 @@ export class Harness {
             startedAt: new Date(ended - (event.durationMs ?? 0)).toISOString(),
             endedAt: new Date(ended).toISOString(),
             data: {
+              phase: "end",
+              toolCallId: event.toolCallId,
               isError: event.isError,
               durationMs: event.durationMs ?? null,
-              ...(() => {
-                const goalStepId = attributeParentTool(this.db.getTask(task.id)?.goal ?? null, event.toolName);
-                return goalStepId ? { goalStepId } : {};
-              })(),
+              ...(goalStepId ? { goalStepId } : {}),
             },
           });
         }
@@ -385,16 +437,20 @@ export class Harness {
               body: memory.body,
             })),
           });
+      const owns = () => this.db.holdsLease(task.id, task.fence, workerId);
       if (resumeChildren) await agent.continue();
       else await agent.prompt(prompt);
-      this.persist(agent, session.id, task.prompt);
+      if (!owns()) return;
+      this.persist(agent, session.id, task.prompt, claim);
       if (abort.signal.aborted) {
-        this.cancelFamily(task.id);
-        this.db.finishTask(task.id, "cancelled", { error: "cancelled", firstResponseMs: run.firstResponseMs });
+        if (owns()) {
+          this.cancelFamily(task.id);
+          this.db.finishTask(task.id, "cancelled", { error: "cancelled", firstResponseMs: run.firstResponseMs }, claim);
+        }
         return;
       }
       if (waiting.size > 0) {
-        const parked = this.db.markWaitingChildren(task.id, [...waiting], run.firstResponseMs);
+        const parked = this.db.markWaitingChildren(task.id, [...waiting], run.firstResponseMs, claim);
         if (parked) {
           this.db.addTrace({
             taskId: task.id,
@@ -409,54 +465,52 @@ export class Harness {
         }
       }
       if (run.waitingApproval) {
-        this.db.markPaused(task.id, run.firstResponseMs);
-        this.notify(task, "Onay bekleniyor", "Bir araç kullanıcı onayı olmadan çalışmadı.");
+        if (this.db.markPaused(task.id, run.firstResponseMs, claim)) {
+          this.notify(task, "Onay bekleniyor", "Bir araç kullanıcı onayı olmadan çalışmadı.");
+        }
         return;
       }
       if (agent.state.errorMessage) throw new Error(agent.state.errorMessage);
       const result = lastAssistantText(agent.state.messages);
       const unmet = goalSuccessBlock(this.db.getTask(task.id)?.goal ?? null);
       if (unmet) {
-        this.db.finishTask(task.id, "failed", { error: unmet, resultText: result, firstResponseMs: run.firstResponseMs });
+        this.db.finishTask(task.id, "failed", { error: unmet, resultText: result, firstResponseMs: run.firstResponseMs }, claim);
         return;
       }
-      this.db.finishTask(task.id, "succeeded", { resultText: result, firstResponseMs: run.firstResponseMs });
-      if (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook") {
+      const finished = this.db.finishTask(task.id, "succeeded", { resultText: result, firstResponseMs: run.firstResponseMs }, claim);
+      if (finished && (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook")) {
         this.notify(task, "Görev bitti", result || task.prompt);
       }
     } catch (caught) {
+      if (!this.db.holdsLease(task.id, task.fence, workerId)) return;
       if (agent) {
-        const sessionId = task.sessionId;
-        try {
-          const messages = resumeChildren ? dropTrailingAssistantError(agent.state.messages) : agent.state.messages;
-          this.db.setTranscript(sessionId, messages, task.prompt.slice(0, 80));
-        } catch {
-          // The original failure is the one to record.
-        }
+        const messages = resumeChildren ? dropTrailingAssistantError(agent.state.messages) : agent.state.messages;
+        this.db.setTranscript(task.sessionId, messages, task.prompt.slice(0, 80), claim);
       }
       const message = caught instanceof Error ? caught.message : String(caught);
       if (abort.signal.aborted) {
         this.cancelFamily(task.id);
-        this.db.finishTask(task.id, "cancelled", { error: message, firstResponseMs: run.firstResponseMs });
+        this.db.finishTask(task.id, "cancelled", { error: message, firstResponseMs: run.firstResponseMs }, claim);
         return;
       }
       const current = this.db.getTask(task.id);
-      if (current && current.attempt + 1 < current.maxAttempts) {
-        this.db.requeueTask(task.id, message);
-        return;
-      }
-      this.db.finishTask(task.id, "failed", { error: message, firstResponseMs: run.firstResponseMs });
-      if (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook") {
+      if (current && current.attempt + 1 < current.maxAttempts && this.db.requeueTask(task.id, message, claim)) return;
+      const failed = this.db.finishTask(task.id, "failed", { error: message, firstResponseMs: run.firstResponseMs }, claim);
+      if (failed && (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook")) {
         this.notify(task, "Görev hata verdi", message);
       }
     } finally {
+      clearInterval(beat);
       closeJevTask(task.id);
       await closeTaskBrowser(task.id);
       this.aborts.delete(task.id);
     }
   }
 
-  private gate(host: ToolHost, context: BeforeToolCallContext) {
+  private gate(host: ToolHost, context: BeforeToolCallContext, claim: TaskClaim) {
+    if (!this.db.holdsLease(claim.taskId, claim.fence, claim.workerId)) {
+      return { block: true, terminate: true, reason: "worker lease is no longer held" };
+    }
     const assessment = assess(context.toolCall.name, context.args, host.workspaceRoot);
     if (assessment.action === "allow") return undefined;
     if (assessment.action === "deny") return { block: true, reason: assessment.reason };
@@ -481,8 +535,10 @@ export class Harness {
     }
   }
 
-  private persist(agent: Agent, sessionId: string, prompt: string): void {
-    this.db.setTranscript(sessionId, agent.state.messages, prompt.slice(0, 80));
+  private persist(agent: Agent, sessionId: string, prompt: string, claim: TaskClaim): void {
+    if (!this.db.setTranscript(sessionId, agent.state.messages, prompt.slice(0, 80), claim)) {
+      throw new Error("stale worker lost the transcript fence");
+    }
   }
 
   private async llm(): Promise<{ model: Model<Api>; streamFn: StreamFn }> {

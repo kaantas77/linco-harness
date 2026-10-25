@@ -107,6 +107,8 @@ export async function runOfflineBench(config: Pick<LincoConfig, "dataDir" | "ski
         compactMaxChars: 180_000,
         compactRequests: true,
         schedulerIntervalMs: 60_000,
+        leaseMs: 15_000,
+        heartbeatMs: 2_000,
       },
       model: SCRIPT_MODEL,
       streamFn: scriptedStream(scenario.steps),

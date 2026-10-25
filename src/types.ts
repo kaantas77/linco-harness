@@ -7,7 +7,8 @@ export type TaskStatus =
   | "waiting_children"
   | "succeeded"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "needs_inspection";
 
 export type MemoryKind = "preference" | "fact" | "project" | "task";
 
@@ -88,6 +89,13 @@ export interface TaskCheckpoint {
   resumeChildren?: boolean;
 }
 
+/** The worker generation that is allowed to write a running task. */
+export interface TaskClaim {
+  taskId: string;
+  fence: number;
+  workerId: string;
+}
+
 export interface Task {
   id: string;
   sessionId: string;
@@ -104,6 +112,10 @@ export interface Task {
   resultText: string | null;
   error: string | null;
   workerId: string | null;
+  /** Monotonic generation. A stale worker holds an older value. */
+  fence: number;
+  leaseUntil: string | null;
+  heartbeatAt: string | null;
   firstResponseMs: number | null;
   createdAt: string;
   startedAt: string | null;

@@ -15,6 +15,9 @@ export interface LincoConfig {
   /** When false, the model receives the stored transcript unchanged. */
   compactRequests: boolean;
   schedulerIntervalMs: number;
+  /** How long a claimed task stays running without a heartbeat. */
+  leaseMs: number;
+  heartbeatMs: number;
 }
 
 export function loadConfig(
@@ -34,6 +37,8 @@ export function loadConfig(
     compactMaxChars: overrides.compactMaxChars ?? numberEnv(env.LINCO_COMPACT_CHARS, 180_000),
     compactRequests: overrides.compactRequests ?? env.LINCO_COMPACT !== "0",
     schedulerIntervalMs: overrides.schedulerIntervalMs ?? numberEnv(env.LINCO_SCHEDULER_MS, 1_000),
+    leaseMs: overrides.leaseMs ?? numberEnv(env.LINCO_LEASE_MS, 15_000),
+    heartbeatMs: overrides.heartbeatMs ?? numberEnv(env.LINCO_HEARTBEAT_MS, 2_000),
   };
 }
 

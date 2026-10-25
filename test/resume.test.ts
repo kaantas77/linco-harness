@@ -28,7 +28,7 @@ describe("resume checkpoint", () => {
       const task = await harness.submit(session.id, "Write once, then wait.", { waitMs: 8_000, maxAttempts: 2 });
       const transcript = harness.db.getTranscript(session.id);
       const users = transcript.filter((message) => message.role === "user").length;
-      const writes = harness.db.listTraces(task.id).filter((trace) => trace.name === "fs_write");
+      const writes = harness.db.listTraces(task.id).filter((trace) => trace.name === "fs_write" && !isStart(trace.data));
       const file = path.join(user.workspacePath, "durable.txt");
       expect(task.status).toBe("succeeded");
       expect(task.resultText).toContain("continued once");
@@ -171,6 +171,10 @@ function called(messages: { role: string }[], name: string): boolean {
     const content = (message as { content?: Array<{ type?: string; name?: string }> }).content;
     return Array.isArray(content) && content.some((part) => part.type === "toolCall" && part.name === name);
   });
+}
+
+function isStart(data: unknown): boolean {
+  return Boolean(data && typeof data === "object" && (data as { phase?: unknown }).phase === "start");
 }
 
 function users(messages: { role: string }[]): number {

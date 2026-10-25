@@ -30,16 +30,16 @@ Bu bir işletim sistemi sandbox'ı değildir. İfade filtresini geçen bir komut
 
 Üretim engeli: kabuk ve code mode, paylaşılan bir makinede kullanıcıları birbirinden ayırmaz.
 
-## Çoklu süreçte görev yarışı
+## Çoklu süreç
 
-Aynı süreçteki worker'lar bir satırı iki kez alamaz. `claimTask` önce aday satırı seçer, sonra `UPDATE ... WHERE id = ? AND status = 'queued'` çalıştırır ve `changes === 1` değilse satırı bırakır.
+Aynı makinedeki iki Node süreci tek SQLite dosyasını paylaşabilir. `claimTask` aday seçimini ve `queued` satırın `running` oluşunu tek `BEGIN IMMEDIATE` işleminde yapar. Aynı oturumun ikinci görevi, ilki `running` iken alınmaz. Sahiplenme worker kimliği, artan `fence`, kira bitişi ve son heartbeat yazar. Canlı worker kirayı yeniler.
 
-Bu, çöken worker için kira değildir. Süreç ölürse satır `running` kalır. Onu geri kuyruğa alan bir süre yoktur.
+Kira dolunca tarama kör tekrar yapmaz. Okuma izi olan veya hiç araç izi olmayan görev yeniden kuyruğa girer. Yazma, silme, kabuk, dış istek, tarayıcı ve çocuk doğurma gibi belirsiz izler `needs_inspection` olur. Başlamış ama bitmemiş araç da incelemeye gider. Bu durum ebeveyni sonsuza kadar bekletmez. Yazılmış dosya geri alınmaz. Exactly-once iddiası yoktur.
 
-Transkript yazımı da süreçler arasında kilitli değildir. İki süreç aynı SQLite dosyasını açarsa, aynı oturumun transkriptini sırayla ezebilir. WAL ve `busy_timeout` yazma çakışmasını bekletir. Oturum sahipliğini tek yazıcıya bağlayan bir çit yoktur.
+Transkript ve terminal yazımı, satır hâlâ `running` ve `fence` hâlâ o worker'a aitse geçer. Eski worker'ın geç yazısı sıfır satır değiştirir. `resumeChildren` işareti bu kurtarmada silinmez.
 
-`waiting_children` uyanışı da aynı türden bir koşullu güncellemedir. Durum hâlâ `waiting_children` ise ve beklenen her çocuk bitmişse satır bir kez `queued` olur. İkinci çağrı satırı değişmiş görür ve bir şey yapmaz. Bu, `running` iken ölen işi toplamaz. Onu geri alan bir kira yoktur. Süreç, devam çağrısı sırasında ya da çocuk `running` iken öldürülürse yeni süreç o satırları bitirmez. Ebeveyn parkta kalabilir. Bu gözlemlenmiş bir sınırdır. Exactly-once yürütme iddiası yoktur. Başarısız bir devam denemesinin yeniden kuyruğa alınması, aynı transkriptten devam işaretini korur. Bu, çağrı sırasında yazılmış dosyayı geri almaz. Transkript yazımı da değişmedi. İki süreç aynı oturumun transkriptini sırayla ezebilir.
+`waiting_children` uyanışı koşullu bir güncellemedir. Durum hâlâ `waiting_children` ise ve beklenen her çocuk bitmişse satır bir kez `queued` olur. İkinci çağrı bir şey yapmaz. Başarısız bir devam denemesi aynı transkriptten devam işaretini korur. Bu, çağrı sırasında yazılmış dosyayı geri almaz.
 
-Üretim engeli: ikinci bir süreç aynı kuyruğu güvenle tüketemez. Tek süreç içindeki koşullu güncelleme, çökme sonrası takılan işi ve çapraz süreç transkript yazımını çözmez. Tek süreçte park, uyanış ve devam doğrudur.
+Üretim engeli: bu koruma tek makinedeki yerel dosya içindir. Ağ dosya sistemiyle paylaşılan SQLite desteklenmez. Kira, harici yan etkiyi geri alamaz. HTTP kimlik doğrulaması, SSRF ve kabuk izolasyonu ayrı kapılardır.
 
-İstek sıkıştırması bu sınırı değiştirmez. Modele giden kopya kısalabilir. SQLite transkripti ve yazılmış dosya durur. `running` iken çöken satır yine toplanmaz. Exactly-once iddiası yoktur.
+İstek sıkıştırması kaydı silmez. Modele giden kopya kısalabilir. SQLite transkripti durur.

@@ -18,6 +18,7 @@ import type {
   Session,
   Task,
   TaskCheckpoint,
+  TaskClaim,
   TaskKind,
   TaskStatus,
   TraceEvent,
@@ -33,6 +34,9 @@ const OPEN_TASK = new Set<TaskStatus>(["queued", "running", "waiting_children", 
 
 export class LincoDb {
   private readonly db: DatabaseSync;
+  lockWaits = 0;
+  private renewNs = 0;
+  private renews = 0;
 
   constructor(filename: string) {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -45,6 +49,10 @@ export class LincoDb {
 
   close(): void {
     this.db.close();
+  }
+
+  leaseStats(): { renews: number; renewNs: number; lockWaits: number } {
+    return { renews: this.renews, renewNs: this.renewNs, lockWaits: this.lockWaits };
   }
 
   createUser(name: string, dataDir: string): User {
@@ -117,14 +125,20 @@ export class LincoDb {
     return JSON.parse(row.transcript_json) as AgentMessage[];
   }
 
-  setTranscript(sessionId: string, messages: AgentMessage[], title?: string): void {
-    this.run(
-      "UPDATE sessions SET transcript_json = ?, title = COALESCE(?, title), updated_at = ? WHERE id = ?",
-      JSON.stringify(messages),
-      title ?? null,
-      nowIso(),
-      sessionId,
-    );
+  setTranscript(sessionId: string, messages: AgentMessage[], title?: string, claim?: TaskClaim): boolean {
+    const params: Sql[] = [JSON.stringify(messages), title ?? null, nowIso(), sessionId];
+    let guard = "";
+    if (claim) {
+      guard = ` AND EXISTS (
+        SELECT 1 FROM tasks
+        WHERE tasks.id = ? AND tasks.session_id = sessions.id AND tasks.fence = ? AND tasks.worker_id = ? AND tasks.status = 'running'
+      )`;
+      params.push(claim.taskId, claim.fence, claim.workerId);
+    }
+    const result = this.db
+      .prepare(`UPDATE sessions SET transcript_json = ?, title = COALESCE(?, title), updated_at = ? WHERE id = ?${guard}`)
+      .run(...params);
+    return result.changes === 1;
   }
 
   enqueueTask(input: {
@@ -152,6 +166,9 @@ export class LincoDb {
       resultText: null,
       error: null,
       workerId: null,
+      fence: 0,
+      leaseUntil: null,
+      heartbeatAt: null,
       firstResponseMs: null,
       createdAt: nowIso(),
       startedAt: null,
@@ -175,25 +192,93 @@ export class LincoDb {
     return task;
   }
 
-  claimTask(workerId: string): Task | undefined {
-    const row = this.one<{ id: string }>(
-      `SELECT id FROM tasks
-       WHERE status = 'queued'
-         AND session_id NOT IN (SELECT session_id FROM tasks WHERE status = 'running')
-       ORDER BY created_at ASC
-       LIMIT 1`,
-    );
-    if (!row) return undefined;
+  claimTask(workerId: string, leaseMs = 15_000): Task | undefined {
     const started = nowIso();
+    const leaseUntil = new Date(Date.now() + leaseMs).toISOString();
+    const id = this.transaction(() => {
+      const row = this.one<{ id: string }>(
+        `SELECT id FROM tasks
+         WHERE status = 'queued'
+           AND session_id NOT IN (SELECT session_id FROM tasks WHERE status = 'running')
+         ORDER BY created_at ASC
+         LIMIT 1`,
+      );
+      if (!row) return undefined;
+      const result = this.db
+        .prepare(
+          `UPDATE tasks
+           SET status = 'running', worker_id = ?, started_at = COALESCE(started_at, ?),
+               fence = fence + 1, lease_until = ?, heartbeat_at = ?, finished_at = NULL
+           WHERE id = ? AND status = 'queued'`,
+        )
+        .run(workerId, started, leaseUntil, started, row.id);
+      return result.changes === 1 ? row.id : undefined;
+    });
+    return id ? this.getTask(id) : undefined;
+  }
+
+  renewLease(taskId: string, fence: number, workerId: string, leaseMs: number): boolean {
+    const started = process.hrtime.bigint();
+    const now = nowIso();
+    const leaseUntil = new Date(Date.now() + leaseMs).toISOString();
     const result = this.db
       .prepare(
         `UPDATE tasks
-         SET status = 'running', worker_id = ?, started_at = COALESCE(started_at, ?)
-         WHERE id = ? AND status = 'queued'`,
+         SET heartbeat_at = ?, lease_until = ?
+         WHERE id = ? AND fence = ? AND worker_id = ? AND status = 'running'`,
       )
-      .run(workerId, started, row.id);
-    if (result.changes !== 1) return undefined;
-    return this.getTask(row.id);
+      .run(now, leaseUntil, taskId, fence, workerId);
+    this.renews += 1;
+    this.renewNs += Number(process.hrtime.bigint() - started);
+    return result.changes === 1;
+  }
+
+  holdsLease(taskId: string, fence: number, workerId: string): boolean {
+    const row = this.one<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM tasks
+       WHERE id = ? AND fence = ? AND worker_id = ? AND status = 'running'`,
+      taskId,
+      fence,
+      workerId,
+    );
+    return (row?.n ?? 0) === 1;
+  }
+
+  expiredRunning(now: string): Task[] {
+    return this.many<TaskRow>(
+      `SELECT * FROM tasks
+       WHERE status = 'running' AND (lease_until IS NULL OR lease_until < ?)
+       ORDER BY created_at ASC`,
+      now,
+    ).map(mapTask);
+  }
+
+  /**
+   * Move an expired running task. The fence stays put so the old worker cannot write.
+   * A renewed lease matches zero rows.
+   */
+  settleExpired(id: string, fence: number, decision: "requeue" | "inspect", now: string): boolean {
+    const current = this.getTask(id);
+    if (!current || current.status !== "running" || current.fence !== fence) return false;
+    if (current.leaseUntil && current.leaseUntil >= now) return false;
+    if (decision === "inspect") {
+      const result = this.db
+        .prepare(
+          `UPDATE tasks
+           SET status = 'needs_inspection', error = ?, worker_id = NULL, lease_until = NULL, heartbeat_at = NULL, finished_at = ?
+           WHERE id = ? AND fence = ? AND status = 'running' AND (lease_until IS NULL OR lease_until < ?)`,
+        )
+        .run("lease expired after an uncertain side effect", now, id, fence, now);
+      return result.changes === 1;
+    }
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'queued', error = ?, worker_id = NULL, lease_until = NULL, heartbeat_at = NULL, finished_at = NULL
+         WHERE id = ? AND fence = ? AND status = 'running' AND (lease_until IS NULL OR lease_until < ?)`,
+      )
+      .run("lease expired before a durable side effect", id, fence, now);
+    return result.changes === 1;
   }
 
   getTask(id: string): Task | undefined {
@@ -233,47 +318,66 @@ export class LincoDb {
     return row?.n ?? 0;
   }
 
-  markPaused(id: string, firstResponseMs?: number): void {
-    this.run(
-      `UPDATE tasks
-       SET status = 'waiting_approval', worker_id = NULL, first_response_ms = COALESCE(?, first_response_ms)
-       WHERE id = ?`,
-      firstResponseMs ?? null,
-      id,
-    );
+  markPaused(id: string, firstResponseMs?: number, claim?: TaskClaim): boolean {
+    const params: Sql[] = [firstResponseMs ?? null, id];
+    let guard = "";
+    if (claim) {
+      guard = " AND fence = ? AND worker_id = ?";
+      params.push(claim.fence, claim.workerId);
+    }
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'waiting_approval', worker_id = NULL, lease_until = NULL, heartbeat_at = NULL,
+             first_response_ms = COALESCE(?, first_response_ms)
+         WHERE id = ? AND status = 'running'${guard}`,
+      )
+      .run(...params);
+    return result.changes === 1;
   }
 
   finishTask(
     id: string,
     status: TaskStatus,
     patch: { resultText?: string; error?: string; firstResponseMs?: number } = {},
-  ): void {
+    claim?: TaskClaim,
+  ): boolean {
     const current = this.getTask(id);
-    this.run(
-      `UPDATE tasks
-       SET status = ?, result_text = COALESCE(?, result_text), error = ?, first_response_ms = COALESCE(?, first_response_ms),
-           finished_at = ?, checkpoint_json = NULL
-       WHERE id = ?`,
-      status,
-      patch.resultText ?? null,
-      patch.error ?? null,
-      patch.firstResponseMs ?? null,
-      nowIso(),
-      id,
-    );
-    if (current?.parentId) this.wakeParent(current.parentId);
-  }
-
-  /** Park a running parent. Returns false when the row is no longer running. */
-  markWaitingChildren(id: string, childIds: string[], firstResponseMs?: number): boolean {
+    const params: Sql[] = [status, patch.resultText ?? null, patch.error ?? null, patch.firstResponseMs ?? null, nowIso(), id];
+    let guard = "";
+    if (claim) {
+      guard = " AND fence = ? AND worker_id = ? AND status = 'running'";
+      params.push(claim.fence, claim.workerId);
+    }
     const result = this.db
       .prepare(
         `UPDATE tasks
-         SET status = 'waiting_children', worker_id = NULL, checkpoint_json = ?,
-             first_response_ms = COALESCE(?, first_response_ms)
-         WHERE id = ? AND status = 'running'`,
+         SET status = ?, result_text = COALESCE(?, result_text), error = ?, first_response_ms = COALESCE(?, first_response_ms),
+             finished_at = ?, checkpoint_json = NULL, lease_until = NULL, heartbeat_at = NULL
+         WHERE id = ?${guard}`,
       )
-      .run(JSON.stringify({ waitFor: childIds } satisfies TaskCheckpoint), firstResponseMs ?? null, id);
+      .run(...params);
+    if (result.changes !== 1) return false;
+    if (current?.parentId) this.wakeParent(current.parentId);
+    return true;
+  }
+
+  /** Park a running parent. Returns false when the row is no longer running. */
+  markWaitingChildren(id: string, childIds: string[], firstResponseMs?: number, claim?: TaskClaim): boolean {
+    const params: Sql[] = [JSON.stringify({ waitFor: childIds } satisfies TaskCheckpoint), firstResponseMs ?? null, id];
+    let guard = "";
+    if (claim) {
+      guard = " AND fence = ? AND worker_id = ?";
+      params.push(claim.fence, claim.workerId);
+    }
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'waiting_children', worker_id = NULL, lease_until = NULL, heartbeat_at = NULL, checkpoint_json = ?,
+             first_response_ms = COALESCE(?, first_response_ms)
+         WHERE id = ? AND status = 'running'${guard}`,
+      )
+      .run(...params);
     return result.changes === 1;
   }
 
@@ -305,26 +409,34 @@ export class LincoDb {
     return result.changes === 1;
   }
 
-  requeueTask(id: string, error: string): void {
+  requeueTask(id: string, error: string, claim?: TaskClaim): boolean {
     const current = this.getTask(id);
     const keep =
       current?.checkpoint?.resumeChildren === true
         ? JSON.stringify({ resumeChildren: true, waitFor: current.checkpoint.waitFor ?? [] } satisfies TaskCheckpoint)
         : null;
-    this.run(
-      `UPDATE tasks
-       SET status = 'queued', attempt = attempt + 1, error = ?, worker_id = NULL, finished_at = NULL, checkpoint_json = ?
-       WHERE id = ?`,
-      error,
-      keep,
-      id,
-    );
+    const params: Sql[] = [error, keep, id];
+    let guard = "";
+    if (claim) {
+      guard = " AND fence = ? AND worker_id = ? AND status = 'running'";
+      params.push(claim.fence, claim.workerId);
+    }
+    const result = this.db
+      .prepare(
+        `UPDATE tasks
+         SET status = 'queued', attempt = attempt + 1, error = ?, worker_id = NULL, lease_until = NULL, heartbeat_at = NULL,
+             finished_at = NULL, checkpoint_json = ?
+         WHERE id = ?${guard}`,
+      )
+      .run(...params);
+    return result.changes === 1;
   }
 
   resumeTask(id: string, checkpoint: TaskCheckpoint): void {
     this.run(
       `UPDATE tasks
-       SET status = 'queued', checkpoint_json = ?, error = NULL, worker_id = NULL, finished_at = NULL
+       SET status = 'queued', checkpoint_json = ?, error = NULL, worker_id = NULL, lease_until = NULL,
+           heartbeat_at = NULL, finished_at = NULL
        WHERE id = ?`,
       JSON.stringify(checkpoint),
       id,
@@ -752,6 +864,40 @@ export class LincoDb {
       CREATE INDEX IF NOT EXISTS idx_automations_next ON automations(enabled, next_run_at);
     `);
     this.addColumn("tasks", "goal_json", "TEXT");
+    this.addColumn("tasks", "fence", "INTEGER NOT NULL DEFAULT 0");
+    this.addColumn("tasks", "lease_until", "TEXT");
+    this.addColumn("tasks", "heartbeat_at", "TEXT");
+  }
+
+  private transaction<T>(fn: () => T): T {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      try {
+        this.db.exec("BEGIN IMMEDIATE");
+      } catch (caught) {
+        if (isBusy(caught) && attempt < 5) {
+          this.lockWaits += 1;
+          continue;
+        }
+        throw caught;
+      }
+      try {
+        const value = fn();
+        this.db.exec("COMMIT");
+        return value;
+      } catch (caught) {
+        try {
+          this.db.exec("ROLLBACK");
+        } catch {
+          // The connection may already have left the transaction.
+        }
+        if (isBusy(caught) && attempt < 5) {
+          this.lockWaits += 1;
+          continue;
+        }
+        throw caught;
+      }
+    }
+    throw new Error("sqlite lock was not acquired");
   }
 
   private addColumn(table: string, name: string, definition: string): void {
@@ -804,6 +950,9 @@ interface TaskRow {
   result_text: string | null;
   error: string | null;
   worker_id: string | null;
+  fence: number;
+  lease_until: string | null;
+  heartbeat_at: string | null;
   first_response_ms: number | null;
   created_at: string;
   started_at: string | null;
@@ -907,6 +1056,9 @@ function mapTask(row: TaskRow): Task {
     resultText: row.result_text,
     error: row.error,
     workerId: row.worker_id,
+    fence: row.fence ?? 0,
+    leaseUntil: row.lease_until,
+    heartbeatAt: row.heartbeat_at,
     firstResponseMs: row.first_response_ms,
     createdAt: row.created_at,
     startedAt: row.started_at,
@@ -954,6 +1106,11 @@ function mapAutomation(row: AutomationRow): Automation {
     createdAt: row.created_at,
   };
 }
+function isBusy(caught: unknown): boolean {
+  const message = caught instanceof Error ? caught.message : String(caught);
+  return /SQLITE_BUSY|database is locked/i.test(message);
+}
+
 function mapNotification(row: NotificationRow): Notification {
   return {
     id: row.id,

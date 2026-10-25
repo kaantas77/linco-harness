@@ -157,7 +157,7 @@ function evaluateStep(step: GoalStep, lookup: EvidenceLookup): GoalStep {
     return { ...step, status: "done", criteria, failure: undefined };
   }
   const child = step.childTaskId ? lookup.db.getTask(step.childTaskId) : undefined;
-  if (child && (child.status === "failed" || child.status === "cancelled")) {
+  if (child && (child.status === "failed" || child.status === "cancelled" || child.status === "needs_inspection")) {
     return { ...step, status: "failed", criteria, failure: child.error ?? child.status };
   }
   if (required.some((criterion) => criterion.status === "blocked")) {
@@ -251,7 +251,7 @@ function toolEvidenceTraces(step: GoalStep, lookup: EvidenceLookup): ToolEvidenc
     ...(step.childTaskId ? lookup.db.listTraces(step.childTaskId) : []),
   ];
   return rows
-    .filter((trace) => trace.kind === "tool")
+    .filter((trace) => trace.kind === "tool" && !startedOnly(trace.data))
     .map((trace) => ({
       id: trace.id,
       taskId: trace.taskId,
@@ -259,6 +259,10 @@ function toolEvidenceTraces(step: GoalStep, lookup: EvidenceLookup): ToolEvidenc
       isError: traceIsError(trace.data),
       ...(goalStepIdOf(trace.data) ? { goalStepId: goalStepIdOf(trace.data) } : {}),
     }));
+}
+
+function startedOnly(data: unknown): boolean {
+  return Boolean(data && typeof data === "object" && (data as { phase?: unknown }).phase === "start");
 }
 
 function goalStepIdOf(data: unknown): string | undefined {
