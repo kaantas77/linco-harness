@@ -34,7 +34,7 @@ function deliver(message) {
 function take() {
   while (buffer.length) {
     const headerEnd = buffer.indexOf("\\r\\n\\r\\n");
-    if (headerEnd >= 0) {
+    if (headerEnd >= 0 && /Content-Length:/i.test(buffer.subarray(0, headerEnd).toString("utf8"))) {
       const header = buffer.subarray(0, headerEnd).toString("utf8");
       const match = /Content-Length:\\s*(\\d+)/i.exec(header);
       if (!match) return;
@@ -78,7 +78,13 @@ if (payload.tool === "tools/list") {
   if (listed.error) finish({ ok: false, error: listed.error.message || "mcp list failed" });
   const tools = listed.result && Array.isArray(listed.result.tools) ? listed.result.tools : [];
   const names = tools.map((tool) => tool && tool.name).filter((name) => typeof name === "string");
-  finish({ ok: true, text: JSON.stringify(names), tree: names.join("\\n") });
+  const schemas = tools.filter((tool) => tool && typeof tool.name === "string").map((tool) => {
+    const schema = tool.inputSchema || {};
+    const properties = schema.properties && typeof schema.properties === "object" ? Object.keys(schema.properties) : [];
+    const required = Array.isArray(schema.required) ? schema.required.filter((item) => typeof item === "string") : [];
+    return { name: tool.name, required, properties };
+  });
+  finish({ ok: true, text: JSON.stringify(names), tree: names.join("\\n"), schemas });
 }
 const called = await ask("tools/call", { name: payload.tool, arguments: payload.arguments || {} });
 clearTimeout(timer);
@@ -87,12 +93,18 @@ const result = called.result || {};
 const content = Array.isArray(result.content) ? result.content : [];
 const texts = [];
 let image;
+let failed = result.isError === true;
 for (const part of content) {
+  if (part && (part.type === "error" || part.isError === true)) {
+    failed = true;
+    texts.push(typeof part.text === "string" ? part.text : (part.message || "desktop tool error"));
+  }
   if (part && part.type === "text" && typeof part.text === "string") texts.push(part.text);
   const data = part && part.type === "image" ? (part.data || (part.source && part.source.data)) : undefined;
   if (typeof data === "string") image = { data, mimeType: part.mimeType || (part.source && part.source.media_type) || "image/png" };
 }
 const text = texts.join("\\n") || JSON.stringify(result).slice(0, 8000);
+if (failed) finish({ ok: false, error: text || "desktop tool reported isError", text, tree: text });
 if (image && image.data.length > 1500000) image = undefined;
 finish({ ok: true, text, tree: text, image });
 `;

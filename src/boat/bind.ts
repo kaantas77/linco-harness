@@ -40,6 +40,7 @@ export function bindBoat(
   const desktop: DesktopBridge = {
     acceptsImages: input.acceptsImages,
     call: (tool, args) => manager.desktop(input.userId, input.taskId, tool, args),
+    schema: (name) => manager.schema(name),
   };
   return { workspacePath: REMOTE_WORKSPACE, files, computer, browser, desktop };
 }

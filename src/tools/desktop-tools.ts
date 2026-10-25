@@ -1,8 +1,9 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import type { DesktopObservation } from "../boat/client.js";
+import { openVerifiedPage, readIds } from "../boat/desktop-flow.js";
 import { defineTool } from "./define.js";
-import { error } from "./files.js";
+import { error, text } from "./files.js";
 import type { ToolHost } from "./host.js";
 
 /** Appended only while the task is bound to a Boat computer. Local sessions keep the previous tool list. */
@@ -53,15 +54,15 @@ export function desktopTools(host: ToolHost): AgentTool[] {
       description: "Click the Boat desktop at x, y. Needs user approval.",
       parameters: Type.Object({ x: Type.Number(), y: Type.Number() }),
       executionMode: "sequential",
-      execute: async (_id, params) => guard(() => call("click", { x: params.x, y: params.y }).then((observation) => show(observation, false))),
+      execute: async (_id, params) => guard(async () => show(await call("click", await front(call, { x: params.x, y: params.y })), false)),
     }),
     defineTool<{ text: string }>({
       name: "desktop_type",
       label: "Desktop type",
-      description: "Type text on the Boat desktop. Needs user approval.",
+      description: "Type text into the focused Boat window. Call desktop_click first so the caret is in that window. Needs user approval.",
       parameters: Type.Object({ text: Type.String() }),
       executionMode: "sequential",
-      execute: async (_id, params) => guard(() => call("type_text", { text: params.text }).then((observation) => show(observation, false))),
+      execute: async (_id, params) => guard(async () => show(await call("type_text", await front(call, { text: params.text })), false)),
     }),
     defineTool<{ app?: string; windowId?: string }>({
       name: "desktop_window",
@@ -74,24 +75,45 @@ export function desktopTools(host: ToolHost): AgentTool[] {
           if (!params.app && !params.windowId) return error("app or windowId is required");
           const observation = params.windowId
             ? await call("bring_to_front", { window_id: params.windowId })
-            : await call("launch_app", { app: params.app });
+            : await call("launch_app", { name: params.app, app: params.app, application: params.app });
           return show(observation, false);
         }),
     }),
     defineTool<{ url: string }>({
       name: "desktop_browser",
       label: "Desktop browser",
-      description: "Open a page in the Boat desktop browser and return its title from the accessibility tree. Needs user approval.",
+      description: "Open a page in the Boat desktop browser. The tool fails unless the accessibility tree or browser state contains the page title. Needs user approval.",
       parameters: Type.Object({ url: Type.String() }),
       executionMode: "sequential",
       execute: async (_id, params) =>
         guard(async () => {
-          await call("launch_app", { app: "google-chrome" });
-          await call("browser_navigate", { url: params.url });
-          return show(await call("get_browser_state", {}), desktop.acceptsImages);
+          const opened = await openVerifiedPage(
+            { call, schema: (name) => desktop.schema?.(name) },
+            params.url,
+            titleExpect(params.url),
+          );
+          if (!opened.ok) return error(`${opened.kind}: ${opened.detail}`);
+          return text(`title verified\n${opened.detail}`);
         }),
     }),
   ];
+}
+
+async function front(call: (tool: string, args: Record<string, unknown>) => Promise<DesktopObservation>, extra: Record<string, unknown>) {
+  const state = await call("get_desktop_state", {});
+  const ids = readIds(state.text);
+  return {
+    ...extra,
+    ...(ids.pid ? { pid: ids.pid } : {}),
+    ...(ids.windowId ? { window_id: ids.windowId } : {}),
+    delivery_mode: "foreground",
+  };
+}
+
+function titleExpect(url: string): RegExp {
+  const host = new URL(url).hostname;
+  if (host === "example.com" || host.endsWith(".example.com")) return /Example Domain/i;
+  return new RegExp(host.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 }
 
 async function guard(fn: () => Promise<unknown>) {

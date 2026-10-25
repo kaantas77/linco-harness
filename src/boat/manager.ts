@@ -5,6 +5,7 @@ import type { LincoDb } from "../db/database.js";
 import { WorkspaceEscapeError } from "../security/workspace.js";
 import type { ComputerBinding } from "../types.js";
 import { BoatFailure, type BoatClient, type BoatMachineType, type BoatSandboxView, type DesktopObservation } from "./client.js";
+import { fitArguments, type DriverSchema } from "./driver-schema.js";
 import { REMOTE_PREFIX, REMOTE_WORKSPACE, RETENTION_NOTE, boatFilePath, quoteShell, workspaceRelative } from "./paths.js";
 import { redactBoat } from "./redact.js";
 
@@ -38,6 +39,8 @@ export interface ComputerDescription {
 }
 
 export class BoatSandboxManager {
+  private schemas = new Map<string, DriverSchema>();
+  private schemasLoaded = false;
   private readonly readyTimeoutMs: number;
   private readonly seen = new Map<string, number>();
 
@@ -243,15 +246,34 @@ export class BoatSandboxManager {
     throw new BoatFailure("too many redirects");
   }
 
+  schema(name: string): DriverSchema | undefined {
+    return this.schemas.get(name);
+  }
+
+  schemasSnapshot(): DriverSchema[] {
+    return [...this.schemas.values()];
+  }
+
   async desktop(userId: string, taskId: string, tool: string, args: Record<string, unknown>): Promise<DesktopObservation> {
     const row = await this.ensure(userId);
     if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
-    if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 30_000)) {
+    if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 90_000)) {
       throw new BoatFailure("desktop is in use by another task");
     }
     try {
       await this.guardUsage(row);
-      return await this.options.client.desktop(row.sandboxId, tool, args);
+      if (tool !== "tools/list" && !this.schemasLoaded) {
+        this.rememberSchemas(await this.options.client.desktop(row.sandboxId, "tools/list", {}));
+      }
+      let next = args;
+      if (tool !== "tools/list") {
+        const fitted = fitArguments(this.schemas.get(tool), args);
+        if (fitted.missing.length > 0) throw new BoatFailure(`desktop ${tool} is missing ${fitted.missing.join(", ")}`);
+        next = fitted.args;
+      }
+      const observation = await this.options.client.desktop(row.sandboxId, tool, next);
+      if (tool === "tools/list") this.rememberSchemas(observation);
+      return observation;
     } finally {
       this.options.db.releaseDesktopLock(row.sandboxId, taskId);
       this.touch(userId);
@@ -382,6 +404,11 @@ export class BoatSandboxManager {
     }
     this.options.db.saveComputer(row.userId, { status: "stopped", lastError: "boat usage limit reached", touch: false });
     throw new BoatFailure("boat usage limit reached");
+  }
+
+  private rememberSchemas(observation: DesktopObservation): void {
+    this.schemasLoaded = true;
+    for (const schema of observation.schemas ?? []) this.schemas.set(schema.name, schema);
   }
 
   private touch(userId: string): void {

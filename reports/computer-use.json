@@ -1,0 +1,1280 @@
+{
+  "createdAt": "2026-10-25T19:59:35.676Z",
+  "startedFrom": "2f8675b",
+  "mode": "live",
+  "performanceClaim": "none",
+  "liveExecuted": true,
+  "liveReason": "Railway variables were injected for this process. Values were not written to the report.",
+  "limits": {
+    "machineType": "small",
+    "ttlSeconds": 1500,
+    "maxSeconds": 1200,
+    "boatUsd": 0.1,
+    "deepseekUsd": 0.75,
+    "scenarioMs": 150000,
+    "readyTimeoutMs": 180000
+  },
+  "sandboxId": "bx_5zp78mwa",
+  "deleted": true,
+  "protocol": "json-lines",
+  "driverErrorCheck": "isError and error content fail the tool call",
+  "schemas": [
+    {
+      "name": "list_apps",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "list_windows",
+      "required": [],
+      "properties": [
+        "on_screen_only",
+        "pid"
+      ]
+    },
+    {
+      "name": "get_window_state",
+      "required": [
+        "pid",
+        "window_id"
+      ],
+      "properties": [
+        "capture_mode",
+        "include_screenshot",
+        "max_depth",
+        "max_elements",
+        "pid",
+        "query",
+        "screenshot_out_file",
+        "session",
+        "window_id"
+      ]
+    },
+    {
+      "name": "verify_state",
+      "required": [
+        "pid",
+        "window_id",
+        "expect"
+      ],
+      "properties": [
+        "expect",
+        "include_screenshot",
+        "pid",
+        "session",
+        "stable_samples",
+        "timeout_ms",
+        "window_id"
+      ]
+    },
+    {
+      "name": "launch_app",
+      "required": [],
+      "properties": [
+        "additional_arguments",
+        "bundle_id",
+        "launch_path",
+        "name",
+        "urls"
+      ]
+    },
+    {
+      "name": "kill_app",
+      "required": [
+        "pid"
+      ],
+      "properties": [
+        "pid"
+      ]
+    },
+    {
+      "name": "bring_to_front",
+      "required": [
+        "pid"
+      ],
+      "properties": [
+        "pid",
+        "window_id"
+      ]
+    },
+    {
+      "name": "set_window_frame",
+      "required": [
+        "pid",
+        "window_id",
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "properties": [
+        "height",
+        "pid",
+        "session",
+        "width",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "invoke_menu",
+      "required": [
+        "pid",
+        "window_id",
+        "path"
+      ],
+      "properties": [
+        "path",
+        "pid",
+        "session",
+        "window_id"
+      ]
+    },
+    {
+      "name": "click",
+      "required": [],
+      "properties": [
+        "button",
+        "count",
+        "cursor_id",
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "from_zoom",
+        "modifier",
+        "pid",
+        "scope",
+        "session",
+        "snapshot_id",
+        "target",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "double_click",
+      "required": [
+        "pid"
+      ],
+      "properties": [
+        "cursor_id",
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "from_zoom",
+        "pid",
+        "session",
+        "snapshot_id",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "right_click",
+      "required": [
+        "pid"
+      ],
+      "properties": [
+        "cursor_id",
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "from_zoom",
+        "modifier",
+        "pid",
+        "session",
+        "snapshot_id",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "drag",
+      "required": [
+        "from_x",
+        "from_y",
+        "to_x",
+        "to_y"
+      ],
+      "properties": [
+        "button",
+        "cursor_id",
+        "delivery_mode",
+        "duration_ms",
+        "from_x",
+        "from_y",
+        "from_zoom",
+        "modifier",
+        "pid",
+        "scope",
+        "session",
+        "steps",
+        "target",
+        "to_x",
+        "to_y",
+        "window_id"
+      ]
+    },
+    {
+      "name": "mouse_button_down",
+      "required": [
+        "pid",
+        "window_id",
+        "x",
+        "y"
+      ],
+      "properties": [
+        "button",
+        "cursor_id",
+        "from_zoom",
+        "pid",
+        "session",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "mouse_drag",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": [
+        "cursor_id",
+        "duration_ms",
+        "from_zoom",
+        "pid",
+        "session",
+        "steps",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "mouse_button_up",
+      "required": [],
+      "properties": [
+        "cursor_id",
+        "from_zoom",
+        "pid",
+        "session",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "parallel_mouse_drag",
+      "required": [
+        "drags"
+      ],
+      "properties": [
+        "drags"
+      ]
+    },
+    {
+      "name": "type_text",
+      "required": [
+        "text"
+      ],
+      "properties": [
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "pid",
+        "scope",
+        "session",
+        "snapshot_id",
+        "target",
+        "text",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "press_key",
+      "required": [
+        "key"
+      ],
+      "properties": [
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "key",
+        "modifiers",
+        "pid",
+        "scope",
+        "session",
+        "snapshot_id",
+        "target",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "hotkey",
+      "required": [
+        "keys"
+      ],
+      "properties": [
+        "delivery_mode",
+        "element_index",
+        "element_token",
+        "keys",
+        "pid",
+        "scope",
+        "session",
+        "snapshot_id",
+        "target",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "set_value",
+      "required": [
+        "pid",
+        "value"
+      ],
+      "properties": [
+        "element_index",
+        "element_token",
+        "pid",
+        "session",
+        "snapshot_id",
+        "value",
+        "window_id"
+      ]
+    },
+    {
+      "name": "scroll",
+      "required": [
+        "direction"
+      ],
+      "properties": [
+        "amount",
+        "by",
+        "cursor_id",
+        "delivery_mode",
+        "direction",
+        "element_index",
+        "element_token",
+        "pid",
+        "scope",
+        "session",
+        "snapshot_id",
+        "target",
+        "window_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "clipboard_read",
+      "required": [],
+      "properties": [
+        "include_text",
+        "session"
+      ]
+    },
+    {
+      "name": "clipboard_write",
+      "required": [],
+      "properties": [
+        "file_path",
+        "image_path",
+        "session",
+        "text"
+      ]
+    },
+    {
+      "name": "get_screen_size",
+      "required": [],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "get_desktop_state",
+      "required": [],
+      "properties": [
+        "screenshot_out_file",
+        "session"
+      ]
+    },
+    {
+      "name": "get_cursor_position",
+      "required": [],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "move_cursor",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": [
+        "cursor_id",
+        "scope",
+        "session",
+        "target",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "set_agent_cursor_enabled",
+      "required": [
+        "session",
+        "enabled"
+      ],
+      "properties": [
+        "enabled",
+        "session"
+      ]
+    },
+    {
+      "name": "set_agent_cursor_motion",
+      "required": [
+        "session"
+      ],
+      "properties": [
+        "arc_flow",
+        "arc_size",
+        "dwell_after_click_ms",
+        "end_handle",
+        "glide_duration_ms",
+        "idle_hide_ms",
+        "session",
+        "spring",
+        "start_handle",
+        "turn_radius"
+      ]
+    },
+    {
+      "name": "get_agent_cursor_state",
+      "required": [
+        "session"
+      ],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "set_agent_cursor_theme",
+      "required": [
+        "session",
+        "theme_id"
+      ],
+      "properties": [
+        "reduced_motion",
+        "session",
+        "theme_id"
+      ]
+    },
+    {
+      "name": "check_permissions",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "health_report",
+      "required": [],
+      "properties": [
+        "include",
+        "skip"
+      ]
+    },
+    {
+      "name": "get_config",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "set_config",
+      "required": [],
+      "properties": [
+        "capture_mode",
+        "experimental_pip",
+        "experimental_pip_geometry",
+        "key",
+        "max_image_dimension",
+        "value"
+      ]
+    },
+    {
+      "name": "get_accessibility_tree",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "zoom",
+      "required": [
+        "window_id",
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "properties": [
+        "pid",
+        "window_id",
+        "x1",
+        "x2",
+        "y1",
+        "y2"
+      ]
+    },
+    {
+      "name": "page",
+      "required": [
+        "action"
+      ],
+      "properties": [
+        "action",
+        "attributes",
+        "bundle_id",
+        "cdp_port",
+        "css_selector",
+        "javascript",
+        "pid",
+        "selector",
+        "target_url_contains",
+        "text",
+        "user_has_confirmed_enabling",
+        "window_id"
+      ]
+    },
+    {
+      "name": "get_browser_state",
+      "required": [],
+      "properties": [
+        "continuation",
+        "include_screenshot",
+        "pid",
+        "query",
+        "scope_ref",
+        "session",
+        "snapshot_format",
+        "tab_id",
+        "target_id",
+        "window_id"
+      ]
+    },
+    {
+      "name": "browser_prepare",
+      "required": [],
+      "properties": [
+        "allow_launch",
+        "pid",
+        "profile",
+        "session",
+        "strategy",
+        "window_id"
+      ]
+    },
+    {
+      "name": "browser_navigate",
+      "required": [
+        "target_id",
+        "tab_id",
+        "url"
+      ],
+      "properties": [
+        "session",
+        "tab_id",
+        "target_id",
+        "url"
+      ]
+    },
+    {
+      "name": "browser_click",
+      "required": [
+        "target_id",
+        "tab_id"
+      ],
+      "properties": [
+        "input_route",
+        "ref",
+        "session",
+        "tab_id",
+        "target_id",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "browser_type",
+      "required": [
+        "target_id",
+        "tab_id",
+        "ref",
+        "text"
+      ],
+      "properties": [
+        "mode",
+        "ref",
+        "replace",
+        "session",
+        "tab_id",
+        "target_id",
+        "text"
+      ]
+    },
+    {
+      "name": "browser_dialog",
+      "required": [
+        "target_id",
+        "tab_id",
+        "action"
+      ],
+      "properties": [
+        "action",
+        "delivery_mode",
+        "dialog_id",
+        "prompt_text",
+        "session",
+        "tab_id",
+        "target_id"
+      ]
+    },
+    {
+      "name": "browser_set_input_files",
+      "required": [
+        "target_id",
+        "tab_id",
+        "ref",
+        "files"
+      ],
+      "properties": [
+        "files",
+        "ref",
+        "session",
+        "tab_id",
+        "target_id"
+      ]
+    },
+    {
+      "name": "browser_download",
+      "required": [
+        "session",
+        "target_id",
+        "tab_id",
+        "ref",
+        "destination_root"
+      ],
+      "properties": [
+        "destination_root",
+        "ref",
+        "session",
+        "tab_id",
+        "target_id"
+      ]
+    },
+    {
+      "name": "browser_pointer",
+      "required": [
+        "target_id",
+        "tab_id",
+        "session",
+        "action"
+      ],
+      "properties": [
+        "action",
+        "delta_x",
+        "delta_y",
+        "destination_ref",
+        "input_route",
+        "ref",
+        "session",
+        "tab_id",
+        "target_id",
+        "to_x",
+        "to_y",
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "start_recording",
+      "required": [
+        "output_dir"
+      ],
+      "properties": [
+        "output_dir",
+        "record_video"
+      ]
+    },
+    {
+      "name": "stop_recording",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "get_recording_state",
+      "required": [],
+      "properties": []
+    },
+    {
+      "name": "replay_trajectory",
+      "required": [
+        "dir"
+      ],
+      "properties": [
+        "delay_ms",
+        "dir",
+        "stop_on_error"
+      ]
+    },
+    {
+      "name": "install_ffmpeg",
+      "required": [],
+      "properties": [
+        "confirm"
+      ]
+    },
+    {
+      "name": "start_session",
+      "required": [],
+      "properties": [
+        "capture_scope",
+        "cursor_theme",
+        "session"
+      ]
+    },
+    {
+      "name": "escalate_session",
+      "required": [
+        "session",
+        "reason"
+      ],
+      "properties": [
+        "detail",
+        "reason",
+        "session"
+      ]
+    },
+    {
+      "name": "get_session",
+      "required": [],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "list_sessions",
+      "required": [],
+      "properties": [
+        "cursor",
+        "limit"
+      ]
+    },
+    {
+      "name": "get_session_state",
+      "required": [],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "end_session",
+      "required": [],
+      "properties": [
+        "session"
+      ]
+    },
+    {
+      "name": "check_for_update",
+      "required": [],
+      "properties": []
+    }
+  ],
+  "kept": [
+    {
+      "n": 1,
+      "ok": true,
+      "durationMs": 740,
+      "toolCalls": [
+        "write",
+        "read",
+        "command"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0,
+      "evidence": "file \"PHASE10-FILE\"; stdout \"PHASE10-RUN\""
+    },
+    {
+      "n": 2,
+      "ok": true,
+      "durationMs": 3476,
+      "toolCalls": [
+        "stop",
+        "read"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.000010000000000000026,
+      "evidence": "after resume \"PHASE10-FILE\"; snapshot completed"
+    }
+  ],
+  "chrome": [
+    {
+      "n": 1,
+      "ok": false,
+      "durationMs": 11344,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows"
+      ],
+      "errors": 1,
+      "retries": 1,
+      "deepseekUsd": 0,
+      "boatUsd": 0.000059999999999999995,
+      "evidence": "not-loaded; flow refused (browser_route_unavailable): no trusted AT-SPI tree for the approved browser window; the accessibility bus must be reachable to prove which window a control belongs to Found 3 windows: [xid=31457283] pid=Some(17164) \"New Tab - Chromium\" 945x920+10+50 [xid=4194306] pid=Some(13087) \"ascii panel\" 1920x40+0+0 [xid=4194307] pid=Some(13087) \"ascii dock\" 264x76+828+988 204 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release "
+    },
+    {
+      "n": 2,
+      "ok": false,
+      "durationMs": 11665,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows"
+      ],
+      "errors": 1,
+      "retries": 1,
+      "deepseekUsd": 0,
+      "boatUsd": 0.000059999999999999995,
+      "evidence": "not-loaded; flow refused (browser_route_unavailable): no trusted AT-SPI tree for the approved browser window; the accessibility bus must be reachable to prove which window a control belongs to Found 3 windows: [xid=31457283] pid=Some(17164) \"New Tab - Chromium\" 945x920+10+50 [xid=4194306] pid=Some(13087) \"ascii panel\" 1920x40+0+0 [xid=4194307] pid=Some(13087) \"ascii dock\" 264x76+828+988 203 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release "
+    },
+    {
+      "n": 3,
+      "ok": false,
+      "durationMs": 9639,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows"
+      ],
+      "errors": 1,
+      "retries": 1,
+      "deepseekUsd": 0,
+      "boatUsd": 0.000040000000000000024,
+      "evidence": "not-loaded; flow refused (browser_route_unavailable): no trusted AT-SPI tree for the approved browser window; the accessibility bus must be reachable to prove which window a control belongs to Found 3 windows: [xid=31457283] pid=Some(17164) \"New Tab - Chromium\" 945x920+10+50 [xid=4194306] pid=Some(13087) \"ascii panel\" 1920x40+0+0 [xid=4194307] pid=Some(13087) \"ascii dock\" 264x76+828+988 203 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release "
+    },
+    {
+      "n": 4,
+      "ok": false,
+      "durationMs": 9872,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows"
+      ],
+      "errors": 1,
+      "retries": 1,
+      "deepseekUsd": 0,
+      "boatUsd": 0.000049999999999999996,
+      "evidence": "not-loaded; flow refused (browser_route_unavailable): no trusted AT-SPI tree for the approved browser window; the accessibility bus must be reachable to prove which window a control belongs to Found 3 windows: [xid=31457283] pid=Some(17164) \"New Tab - Chromium\" 945x920+10+50 [xid=4194306] pid=Some(13087) \"ascii panel\" 1920x40+0+0 [xid=4194307] pid=Some(13087) \"ascii dock\" 264x76+828+988 203 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release "
+    },
+    {
+      "n": 5,
+      "ok": false,
+      "durationMs": 10322,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows",
+        "get_accessibility_tree",
+        "list_windows"
+      ],
+      "errors": 1,
+      "retries": 1,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00005999999999999997,
+      "evidence": "not-loaded; flow refused (browser_route_unavailable): no trusted AT-SPI tree for the approved browser window; the accessibility bus must be reachable to prove which window a control belongs to Found 3 windows: [xid=31457283] pid=Some(17164) \"New Tab - Chromium\" 945x920+10+50 [xid=4194306] pid=Some(13087) \"ascii panel\" 1920x40+0+0 [xid=4194307] pid=Some(13087) \"ascii dock\" 264x76+828+988 209 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release "
+    }
+  ],
+  "typing": [
+    {
+      "n": 1,
+      "ok": true,
+      "durationMs": 9595,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00004000000000000005,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE10-TYPE \"; driver ok window_id=46137350 pid=19919 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    },
+    {
+      "n": 2,
+      "ok": true,
+      "durationMs": 10257,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00005000000000000002,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE10-TYPE \"; driver ok window_id=46137350 pid=20475 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    },
+    {
+      "n": 3,
+      "ok": true,
+      "durationMs": 9886,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00004999999999999997,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE10-TYPE \"; driver ok window_id=46137350 pid=20837 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    },
+    {
+      "n": 4,
+      "ok": true,
+      "durationMs": 10047,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00005000000000000002,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE10-TYPE \"; driver ok window_id=46137350 pid=21152 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    },
+    {
+      "n": 5,
+      "ok": true,
+      "durationMs": 9644,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0,
+      "boatUsd": 0.00004999999999999997,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE10-TYPE \"; driver ok window_id=46137350 pid=21458 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    }
+  ],
+  "vision": [
+    {
+      "n": 1,
+      "ok": false,
+      "durationMs": 5772,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state"
+      ],
+      "errors": 1,
+      "retries": 0,
+      "deepseekUsd": 0.0001686,
+      "boatUsd": 0.000020000000000000052,
+      "evidence": "window png 945x920; sent 945x920 dark 451311; bytes sent 62120; model \"5U34\"; exact false; tree leaked the code: false"
+    },
+    {
+      "n": 2,
+      "ok": false,
+      "durationMs": 6010,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state"
+      ],
+      "errors": 1,
+      "retries": 0,
+      "deepseekUsd": 0.0001674,
+      "boatUsd": 0.00003000000000000008,
+      "evidence": "window png 945x920; sent 945x920 dark 448856; bytes sent 67920; model \"KUTO\"; exact false; tree leaked the code: false"
+    },
+    {
+      "n": 3,
+      "ok": false,
+      "durationMs": 5845,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state"
+      ],
+      "errors": 1,
+      "retries": 0,
+      "deepseekUsd": 0.0001686,
+      "boatUsd": 0.00002999999999999997,
+      "evidence": "window png 945x920; sent 945x920 dark 452580; bytes sent 68684; model \"FSSF\"; exact false; tree leaked the code: false"
+    },
+    {
+      "n": 4,
+      "ok": false,
+      "durationMs": 5692,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state"
+      ],
+      "errors": 1,
+      "retries": 0,
+      "deepseekUsd": 0.0001674,
+      "boatUsd": 0.000020000000000000052,
+      "evidence": "window png 945x920; sent 945x920 dark 447448; bytes sent 68384; model \"TMITY\"; exact false; tree leaked the code: false"
+    },
+    {
+      "n": 5,
+      "ok": false,
+      "durationMs": 5688,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state"
+      ],
+      "errors": 1,
+      "retries": 0,
+      "deepseekUsd": 0.0001674,
+      "boatUsd": 0.00002999999999999997,
+      "evidence": "window png 945x920; sent 945x920 dark 451061; bytes sent 68376; model \"X931\"; exact false; tree leaked the code: false"
+    }
+  ],
+  "naturalLanguage": [
+    {
+      "n": 1,
+      "ok": false,
+      "durationMs": 34902,
+      "toolCalls": [
+        "desktop_browser!",
+        "desktop_browser!",
+        "desktop_state",
+        "desktop_click!",
+        "desktop_click!",
+        "desktop_state",
+        "desktop_window!",
+        "desktop_window!",
+        "desktop_tree!",
+        "desktop_click!",
+        "desktop_click!",
+        "shell_exec"
+      ],
+      "errors": 9,
+      "retries": 0,
+      "deepseekUsd": 0.0029981879999999997,
+      "boatUsd": 0.00017999999999999993,
+      "evidence": "status succeeded; independent title verified false; quote Görev tamamlanmadı — sonucu olduğu gibi aktarıyorum: **Olanlar** - `desktop_browser` ile https://example.com açmayı denedim: tarayıcı penceresi için güvenilir AT-SPI erişilebilirlik ağacı bulunamadığı için araç reddetti (`browser_route_unavailable`). - Masaüstünü ekran görüntüsüyle kontrol ettim: Chromium açık ama yerel bir dosya gösteriyor (`/home/user/linco/proof/shot-5.png`), yanında nano açık bir terminal var. - Sekmeye tıklama/focus "
+    },
+    {
+      "n": 2,
+      "ok": false,
+      "durationMs": 13284,
+      "toolCalls": [
+        "desktop_state",
+        "desktop_click!",
+        "desktop_click!",
+        "desktop_state"
+      ],
+      "errors": 2,
+      "retries": 0,
+      "deepseekUsd": 0.004226916,
+      "boatUsd": 0.00006000000000000005,
+      "evidence": "click false; type false; shell false; independent read \"PHASE10-TYPE \"; status succeeded"
+    },
+    {
+      "n": 3,
+      "ok": false,
+      "durationMs": 5424,
+      "toolCalls": [
+        "desktop_screenshot"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0.0019849919999999997,
+      "boatUsd": 0.000019999999999999944,
+      "evidence": "exact false; screenshot tool true; quote \"Ekrandaki görüntüde (Chrome'da açık `shot-5.png`) dört blok harf var: **K93U**. Dosyayı açmadım — yalnızca masaüstü ekran görüntüsündeki piksellerden okudum. Okuma gerekçesi, soldan sağa: 1. **K** — Solda dikey gövde; sağa doğru üst kol yukarı, alt kol aşağı açılıyor. 2. **9** — Üstte kapalı kutu (ilmik), sağ dikey gövde alta iniyor, alt uç sola kıvrık. 3. **3** — Üstte ve altta iki açık yay, ortada içe dönük boğum. 4. **U** — İki dikey yan yana, altta y"
+    },
+    {
+      "n": 4,
+      "ok": true,
+      "durationMs": 12025,
+      "toolCalls": [
+        "task_spawn",
+        "task_spawn",
+        "task_wait",
+        "task_wait",
+        "fs_read",
+        "fs_read",
+        "fs_write",
+        "fs_read",
+        "fs_write",
+        "fs_read"
+      ],
+      "errors": 0,
+      "retries": 0,
+      "deepseekUsd": 0.00372336,
+      "boatUsd": 0.00006000000000000005,
+      "evidence": "children 2; alpha \"ALPHA-10 \"; beta \"BETA-10 \"; creates 1"
+    }
+  ],
+  "totals": {
+    "durationMs": 269902,
+    "deepseekUsd": 0.013772856,
+    "boatUsd": 0.00102
+  },
+  "notes": [
+    "A failed desktop tool is returned to the model as a failed tool call.",
+    "Shell output is not accepted as the typed file.",
+    "A visual guess is accepted only when the reply is the painted code and the image was a PNG of the viewer window.",
+    "tools/list returned 60 schemas. Arguments are checked against that list before the driver call.",
+    "installed desktop apps: budgie-mouse-panel.desktop code.desktop com.google.Chrome.desktop dev.lizardbyte.app.Sunshine.terminal.desktop gnome-disk-image-mounter.desktop gnome-disk-image-writer.desktop gnome-mouse-panel.desktop google-chrome.desktop nm-connection-editor.desktop org.gnome.Terminal.desktop org.gnome.Terminal.Preferences.desktop --- /usr/bin/google-chrome /usr/bin/nano /usr/bin/gnome-terminal ",
+    "Desktop typing on this sandbox was 5/5. Each trial called click and type_text in gnome-terminal running nano. The shell did not write PHASE10-TYPE. The independent read was PHASE10-TYPE plus a trailing space; trim matched.",
+    "Chrome was 0/5. The window stayed New Tab - Chromium. get_browser_state returned browser_route_unavailable because the accessibility bus had no trusted AT-SPI tree. Address click, ctrl+l, and typing the URL did not change the title. That is a not-loaded result, not a success.",
+    "Visual reading on this sandbox was 0/5. The PNG was a real 945x920 window screenshot and the accessibility tree did not contain the code. DeepSeek Flash's reply was not the painted code. Wrong guesses were not counted.",
+    "Earlier deleted sandbox bx_amtewwdh sent the same uncropped window size and DeepSeek Flash matched the painted code on 2 of 5 trials. The other three replies were different codes. A center crop on deleted sandbox bx_99g7yu93 was 0 of 5. Those rows are not this sandbox's table."
+  ]
+}

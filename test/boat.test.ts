@@ -221,6 +221,7 @@ describe("boat computer", () => {
       expect(script).toContain("/opt/ascii/cua-driver/cua-driver");
       expect(script).toContain("--socket");
       expect(script).toContain("/run/ascii-cua/driver.sock");
+      expect(script).toContain("isError");
       expect(script).not.toContain("npm install");
       expect(command).not.toContain("boat_");
       record("desktop", true, "click waits for approval; text-only models receive the tree; Flash accepts images and Pro does not");

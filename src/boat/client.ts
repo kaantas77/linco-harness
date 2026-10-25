@@ -7,6 +7,8 @@ import {
   writeText,
 } from "@boatdev/sdk";
 import type { Sandbox } from "@boatdev/sdk";
+import type { DriverSchema } from "./driver-schema.js";
+import { parseSchemas } from "./driver-schema.js";
 import { mcpCommand } from "./mcp.js";
 import { quoteShell } from "./paths.js";
 import { redactBoat } from "./redact.js";
@@ -40,6 +42,7 @@ export interface DesktopObservation {
   text: string;
   tree: string;
   image?: { data: string; mimeType: string };
+  schemas?: DriverSchema[];
 }
 
 export type BoatMachineType = "small" | "default" | "large" | "xlarge";
@@ -201,7 +204,7 @@ class SdkBoatClient implements BoatClient {
     if (result.timedOut) throw new BoatFailure("boat desktop driver timed out");
     const line = result.stdout.trim().split("\n").findLast((item) => item.startsWith("{"));
     if (!line) throw new BoatFailure(`boat desktop driver did not answer: ${result.stderr || "empty output"}`);
-    let parsed: { ok?: boolean; text?: string; tree?: string; image?: { data?: string; mimeType?: string }; error?: string };
+    let parsed: { ok?: boolean; text?: string; tree?: string; image?: { data?: string; mimeType?: string }; error?: string; schemas?: unknown };
     try {
       parsed = JSON.parse(line) as typeof parsed;
     } catch {
@@ -211,7 +214,12 @@ class SdkBoatClient implements BoatClient {
     const image = parsed.image?.data
       ? { data: parsed.image.data, mimeType: parsed.image.mimeType || "image/png" }
       : undefined;
-    return { text: redactBoat(parsed.text ?? ""), tree: redactBoat(parsed.tree ?? parsed.text ?? ""), image };
+    return {
+      text: redactBoat(parsed.text ?? ""),
+      tree: redactBoat(parsed.tree ?? parsed.text ?? ""),
+      image,
+      schemas: parseSchemas(parsed.schemas),
+    };
   }
 }
 

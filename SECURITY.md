@@ -42,7 +42,11 @@ Durmuş diskin Boat belgesinde 14 gün kaldığı, `/home/user` içinin durduğu
 
 Canlı sürücü `cua-driver` 0.23.2 stdin'i JSON satırı olarak okur. `Content-Length` başlığı ilk kolonda ayrıştırma hatası verdi. Linco artık her MCP mesajını tek JSON satırı yazar. Araç adları canlı `tools/list` ile doğrulandı. Masaüstü kilidi ikinci görevi `desktop is in use by another task` ile çevirdi. Eksik sandbox kimliği `boat api 404 not_found` döndü. Gerçek kimlikler `bx_` ile başlar. `usage.seconds` ilk okumada 0 kaldı; `usage.dollars` sonraki okumalarda değişti.
 
-Kalan kapı: canlı Chrome başlığı `get_browser_state` içinde görünmedi. `desktop_type` çağrılmadı ve `proof/typed.txt` okuması `boat api 400 sandbox_direct_failed` verdi. Modele görüntü parçaları gitti; dönen dört karakter çizilen PNG ile aynı değildi. İptal, uzak komutun bitmesini beklemez. `code_run` yorumlayıcısı hosttaki kapılı süreçte kalır; çağırdığı dosya ve kabuk araçları Boat modunda makineye gider. Sanal makinedeki `web_fetch` adres kontrolünü hostta yapar, sonra sabitlenmiş adresle makinede `curl` çalıştırır. Makinenin kendi sonraki bağlantısı bu kontrolün dışında kalabilir. Boşta duran makine `LINCO_BOAT_IDLE_MS` sonra durur. `LINCO_BOAT_MAX_SECONDS` aşılınca yeni komut reddedilir. Canlı koşunun tavanı small, 1500 saniye, Boat $0.10 ve DeepSeek $0.75 idi. Makine sonunda silindi.
+Sürücü `tools/call` içinde `isError` veya `type: error` döndürürse Linco bunu başarılı araç sonucu saymaz. Çağrıdan önce argümanlar canlı `tools/list` şemasındaki zorunlu alanlara bakılır. Eksik alan sürücüye gitmez.
+
+Faz 10.1 kaydı `reports/computer-use.md` içindedir. Makine `bx_5zp78mwa` silindi. Yazma 5/5 bağımsız okumayla durdu. Chrome 0/5: pencere `New Tab - Chromium` kaldı ve `browser_route_unavailable` erişilebilirlik yolunun AT-SPI ağacı olmadığını söyledi. Bu başlık doğrulanmadı. Bu makinede görüntü okuma 0/5 oldu. Daha önceki silinmiş `bx_amtewwdh` makinesinde Flash 5 görüntünün 2'sinde kodu tutturdu. Yanlış okuma başarı değildir.
+
+İptal, uzak komutun bitmesini beklemez. `code_run` yorumlayıcısı hosttaki kapılı süreçte kalır; çağırdığı dosya ve kabuk araçları Boat modunda makineye gider. Sanal makinedeki `web_fetch` adres kontrolünü hostta yapar, sonra sabitlenmiş adresle makinede `curl` çalıştırır. Makinenin kendi sonraki bağlantısı bu kontrolün dışında kalabilir. Boşta duran makine `LINCO_BOAT_IDLE_MS` sonra durur. `LINCO_BOAT_MAX_SECONDS` aşılınca yeni komut reddedilir. Canlı koşunun tavanı small, 1500 saniye, Boat $0.10 ve DeepSeek $0.75 idi. Makine sonunda silindi.
 
 ## Kira ve çit
 
