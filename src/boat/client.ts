@@ -196,7 +196,7 @@ class SdkBoatClient implements BoatClient {
     const result = await this.command({
       sandboxId,
       command: mcpCommand(tool, args),
-      timeoutSeconds: 30,
+      timeoutSeconds: 60,
     });
     if (result.timedOut) throw new BoatFailure("boat desktop driver timed out");
     const line = result.stdout.trim().split("\n").findLast((item) => item.startsWith("{"));

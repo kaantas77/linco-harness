@@ -24,9 +24,7 @@ let buffer = Buffer.alloc(0);
 const waiting = new Map();
 let next = 1;
 function send(message) {
-  const body = Buffer.from(JSON.stringify(message));
-  child.stdin.write("Content-Length: " + body.length + "\\r\\n\\r\\n");
-  child.stdin.write(body);
+  child.stdin.write(JSON.stringify(message) + "\\n");
 }
 function deliver(message) {
   if (message.id === undefined) return;
@@ -55,7 +53,9 @@ function take() {
     if (line.startsWith("{")) deliver(JSON.parse(line));
   }
 }
+let stderr = "";
 child.stdout.on("data", (chunk) => { buffer = Buffer.concat([buffer, chunk]); take(); });
+child.stderr.on("data", (chunk) => { stderr = (stderr + chunk.toString()).slice(-300); });
 child.on("error", (error) => finish({ ok: false, error: "preinstalled cua-driver was not found: " + error.message }));
 function ask(method, params) {
   const id = next++;
@@ -64,7 +64,7 @@ function ask(method, params) {
     send({ jsonrpc: "2.0", id, method, params });
   });
 }
-const timer = setTimeout(() => finish({ ok: false, error: "boat desktop driver timed out" }), 20000);
+const timer = setTimeout(() => finish({ ok: false, error: "boat desktop driver timed out" + (stderr ? ": " + stderr : "") }), 45000);
 const started = await ask("initialize", {
   protocolVersion: "2024-11-05",
   capabilities: {},
@@ -72,6 +72,14 @@ const started = await ask("initialize", {
 });
 if (started.error) finish({ ok: false, error: started.error.message || "mcp initialize failed" });
 send({ jsonrpc: "2.0", method: "notifications/initialized" });
+if (payload.tool === "tools/list") {
+  const listed = await ask("tools/list", {});
+  clearTimeout(timer);
+  if (listed.error) finish({ ok: false, error: listed.error.message || "mcp list failed" });
+  const tools = listed.result && Array.isArray(listed.result.tools) ? listed.result.tools : [];
+  const names = tools.map((tool) => tool && tool.name).filter((name) => typeof name === "string");
+  finish({ ok: true, text: JSON.stringify(names), tree: names.join("\\n") });
+}
 const called = await ask("tools/call", { name: payload.tool, arguments: payload.arguments || {} });
 clearTimeout(timer);
 if (called.error) finish({ ok: false, error: called.error.message || "mcp tool failed" });
@@ -88,6 +96,18 @@ const text = texts.join("\\n") || JSON.stringify(result).slice(0, 8000);
 if (image && image.data.length > 1500000) image = undefined;
 finish({ ok: true, text, tree: text, image });
 `;
+
+/** Names Linco asks the preinstalled driver to call. A live run compares these with tools/list. */
+export const ASSUMED_DESKTOP_TOOLS = [
+  "get_desktop_state",
+  "get_window_state",
+  "click",
+  "type_text",
+  "launch_app",
+  "bring_to_front",
+  "browser_navigate",
+  "get_browser_state",
+];
 
 export function mcpCommand(tool: string, args: Record<string, unknown>): string {
   const payload = Buffer.from(JSON.stringify({ tool, arguments: args })).toString("base64");

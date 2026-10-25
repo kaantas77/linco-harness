@@ -319,7 +319,7 @@ export class BoatSandboxManager {
       if (!row) throw new BoatFailure("computer row disappeared");
       if (row.status === "error") throw new BoatFailure(row.lastError ?? "boat sandbox create failed");
       if (row.sandboxId && row.status !== "creating") return this.refresh(row);
-      await sleep(30);
+      await sleep(500);
     }
     throw new BoatFailure("boat sandbox create did not finish");
   }
@@ -334,7 +334,7 @@ export class BoatSandboxManager {
       if (latest.state === "error" || latest.state === "cancelled") {
         throw new BoatFailure(`boat sandbox entered ${latest.state}${latest.error ? `: ${latest.error}` : ""}`);
       }
-      await sleep(20);
+      await sleep(500);
     }
     throw new BoatFailure(`boat sandbox was not ready (${latest?.state ?? "unknown"})`);
   }

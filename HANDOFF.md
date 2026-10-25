@@ -1,6 +1,6 @@
 # Linco Harness — faz 5 devir notu
 
-Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. Faz 6, isteğin bağlamını kısalttı ve aynı görevleri açık/kapalı ölçtü. SQLite transkripti durur. Faz 7, aynı makinede iki Node sürecinin tek SQLite kuyruğunu kira ve çitle paylaşmasını ekledi. Faz 8, süresi dolmuş kirayı, görev yazılarını, HTTP kimliğini, SSRF kontrolünü ve kabuk izolasyonunu ekledi. Faz 9, `LINCO_COMPUTER=boat` iken her kullanıcıya bir Boat sanal bilgisayarı bağlar. Yerel modun araç listesi aynı kaldı. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
+Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. Faz 6, isteğin bağlamını kısalttı ve aynı görevleri açık/kapalı ölçtü. SQLite transkripti durur. Faz 7, aynı makinede iki Node sürecinin tek SQLite kuyruğunu kira ve çitle paylaşmasını ekledi. Faz 8, süresi dolmuş kirayı, görev yazılarını, HTTP kimliğini, SSRF kontrolünü ve kabuk izolasyonunu ekledi. Faz 9, `LINCO_COMPUTER=boat` iken her kullanıcıya bir Boat sanal bilgisayarı bağlar. Faz 10, bu bağı gerçek Boat hesabında DeepSeek Flash ile ölçtü. Yerel modun araç listesi aynı kaldı. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
 
 Kod: `linco-harness/` (bu klasörün yanında Pi, DeepSeek Harness, Hermes ve NeMo duruyor; onlar referans. Yeni depo sadece `linco-harness`).
 
@@ -195,17 +195,19 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 9. Kimlik, SSRF ve kabuk izolasyonu kuruldu. Ayrıntı `SECURITY.md` ve `reports/security.md` içindedir. `LINCO_AUTH=dev` ve `LINCO_SANDBOX=off` üretim modu değildir.
 
-10. Boat bilgisayarı kuruldu. `LINCO_COMPUTER=boat` her kullanıcıya bir sanal makine bağlar. Dosya, kabuk ve masaüstü o makinededir. Yerel mod eski testlerde durur. Canlı Boat koşusu yoktur. Ayrıntı `reports/boat.md` içindedir. Sıradaki büyük iş, gerçek kullanıcı yüküyle ölçek ve dayanıklılık ölçmektir.
+10. Boat bilgisayarı kuruldu. `LINCO_COMPUTER=boat` her kullanıcıya bir sanal makine bağlar. Dosya, kabuk ve masaüstü o makinededir. Yerel mod eski testlerde durur. Sahte API kaydı `reports/boat.md` içindedir.
 
-11. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
+11. Canlı Boat koşusu `bx_k26y6st3` üzerinde yapıldı ve makine silindi. Tavanlar önceden small, 1500 saniye ömür, Boat $0.10 ve DeepSeek $0.75 idi. Senaryo satırlarının toplamı yaklaşık $0.0081 DeepSeek ve $0.0003 Boat'tur. Bu bir fatura dökümü değildir ve sıralama değildir. Dosya, terminal, durdur-devam, iki çocuk, tek makine, başka kullanıcı, host dosyası, zaman aşımı, iptal ve masaüstü kilidi model cümlesinden ayrı doğrulandı. Chrome başlığı ve klavyeyle yazılan dosya doğrulanamadı. Ekran görüntüsü modele gitti; modelin okuduğu dört karakter PNG'deki karakter değildi. Ayrıntı `reports/boat-live.md` içindedir. Sıradaki büyük iş, gerçek kullanıcı yüküyle ölçek ve dayanıklılık ölçmektir.
 
-12. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
+12. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
-13. Yük. Aynı makinede gerçek kullanıcı sayısı, kuyruk beklemesi ve çökme sonrası toparlanma. Yeni agent özelliği eklemeden ölç.
+13. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
 
-14. Başka makine. Aynı SQLite dosyasını ağ üzerinden paylaşma. Kira, yazılmış dosyayı geri almaz.
+14. Yük. Aynı makinede gerçek kullanıcı sayısı, kuyruk beklemesi ve çökme sonrası toparlanma. Yeni agent özelliği eklemeden ölç.
 
-15. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
+15. Başka makine. Aynı SQLite dosyasını ağ üzerinden paylaşma. Kira, yazılmış dosyayı geri almaz.
+
+16. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
 
 ## Doğrulama
 
@@ -240,7 +242,9 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `test/security.test.ts` — kimlik, SSRF, sandbox ve süresi dolmuş kira
 - `test/boat.test.ts` — sahte Boat API
 - `reports/security.json`, `reports/security.md` — `performanceClaim: none`
-- `reports/boat.json`, `reports/boat.md` — offline, `performanceClaim: none`, canlı koşu yok
+- `reports/boat.json`, `reports/boat.md` — sahte API, `performanceClaim: none`
+- `reports/boat-live.json`, `reports/boat-live.md` — gerçek Boat, `bx_k26y6st3`, `performanceClaim: none`
+- `src/boat/live-check.ts` — tavanlı canlı senaryolar. `LINCO_BOAT_LIVE=1` olmadan süite girmez
 - `src/agent/children.ts` — park işareti, çocuk raporu, hatalı asistan mesajını düşürme
 - `src/agent/goal.ts` — hedef, bağımlılık, kanıt ve yeniden plan
 - `src/tools/goal-tools.ts` — v4 hedef araçları

@@ -37,6 +37,8 @@ export interface HarnessOptions {
   model?: Model<Api>;
   /** Test double. Production builds the Boat client from BOAT_API_KEY. */
   boat?: BoatSandboxManager;
+  /** How long to wait for a Boat sandbox to become ready. */
+  boatReadyTimeoutMs?: number;
 }
 
 export class Harness {
@@ -77,6 +79,7 @@ export class Harness {
         idleStopMs: this.config.boatIdleStopMs,
         maxSeconds: this.config.boatMaxSeconds,
         allowLoopback: this.config.allowLoopback,
+        ...(options.boatReadyTimeoutMs ? { readyTimeoutMs: options.boatReadyTimeoutMs } : {}),
       });
     } else {
       this.boat = null;
