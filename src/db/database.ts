@@ -21,6 +21,7 @@ import type {
   TaskClaim,
   TaskKind,
   TaskStatus,
+  ComputerBinding,
   TraceEvent,
   UsageEvent,
   UsageSummary,
@@ -105,6 +106,119 @@ export class LincoDb {
   getUser(id: string): User | undefined {
     const row = this.one<UserRow>("SELECT * FROM users WHERE id = ?", id);
     return row ? mapUser(row) : undefined;
+  }
+
+  getComputer(userId: string): ComputerBinding | undefined {
+    const row = this.one<ComputerRow>("SELECT * FROM computers WHERE user_id = ?", userId);
+    return row ? mapComputer(row) : undefined;
+  }
+
+  /** Insert the user's single sandbox row, or return the row another caller already inserted. */
+  beginComputer(
+    userId: string,
+    machineType: string,
+    workspacePath: string,
+    retentionNote: string,
+  ): { record: ComputerBinding; owner: boolean } {
+    const now = nowIso();
+    try {
+      this.run(
+        `INSERT INTO computers (
+          user_id, sandbox_id, status, idempotency_key, machine_type, workspace_path,
+          snapshot_id, snapshot_status, retention_note, last_error, last_used_at, created_at, updated_at
+        ) VALUES (?, NULL, 'creating', ?, ?, ?, NULL, NULL, ?, NULL, ?, ?, ?)`,
+        userId,
+        createId("idem"),
+        machineType,
+        workspacePath,
+        retentionNote,
+        now,
+        now,
+        now,
+      );
+      const created = this.getComputer(userId);
+      if (!created) throw new Error("computer row was not stored");
+      return { record: created, owner: true };
+    } catch (caught) {
+      if (!isConstraint(caught)) throw caught;
+      const row = this.getComputer(userId);
+      if (!row) throw caught;
+      if (row.sandboxId || row.status !== "creating") return { record: row, owner: false };
+      if (!this.claimStaleComputer(row)) return { record: row, owner: false };
+      const claimed = this.getComputer(userId);
+      if (!claimed) throw caught;
+      return { record: claimed, owner: true };
+    }
+  }
+
+  saveComputer(
+    userId: string,
+    patch: {
+      sandboxId?: string | null;
+      status?: ComputerBinding["status"];
+      snapshotId?: string | null;
+      snapshotStatus?: string | null;
+      lastError?: string | null;
+      touch?: boolean;
+    },
+  ): ComputerBinding {
+    const current = this.getComputer(userId);
+    if (!current) throw new Error(`unknown computer for ${userId}`);
+    const now = nowIso();
+    this.run(
+      `UPDATE computers SET sandbox_id = ?, status = ?, snapshot_id = ?, snapshot_status = ?, last_error = ?, last_used_at = ?, updated_at = ? WHERE user_id = ?`,
+      patch.sandboxId === undefined ? current.sandboxId : patch.sandboxId,
+      patch.status ?? current.status,
+      patch.snapshotId === undefined ? current.snapshotId : patch.snapshotId,
+      patch.snapshotStatus === undefined ? current.snapshotStatus : patch.snapshotStatus,
+      patch.lastError === undefined ? current.lastError : patch.lastError,
+      patch.touch === false ? current.lastUsedAt : now,
+      now,
+      userId,
+    );
+    const saved = this.getComputer(userId);
+    if (!saved) throw new Error(`unknown computer for ${userId}`);
+    return saved;
+  }
+
+  userHasOpenTask(userId: string): boolean {
+    const row = this.one<{ id: string }>(
+      "SELECT id FROM tasks WHERE user_id = ? AND status IN ('queued', 'running', 'waiting_children', 'waiting_approval') LIMIT 1",
+      userId,
+    );
+    return Boolean(row);
+  }
+
+  listIdleComputers(usedBefore: string): ComputerBinding[] {
+    return this.many<ComputerRow>(
+      "SELECT * FROM computers WHERE status = 'ready' AND sandbox_id IS NOT NULL AND last_used_at < ?",
+      usedBefore,
+    ).map(mapComputer);
+  }
+
+  tryDesktopLock(sandboxId: string, taskId: string, ttlMs: number): boolean {
+    const now = Date.now();
+    const expires = new Date(now + ttlMs).toISOString();
+    return this.transaction(() => {
+      this.run("DELETE FROM desktop_locks WHERE expires_at <= ?", new Date(now).toISOString());
+      const held = this.one<{ task_id: string }>("SELECT task_id FROM desktop_locks WHERE sandbox_id = ?", sandboxId);
+      if (held?.task_id === taskId) {
+        this.run("UPDATE desktop_locks SET expires_at = ? WHERE sandbox_id = ?", expires, sandboxId);
+        return true;
+      }
+      if (held) return false;
+      this.run(
+        "INSERT INTO desktop_locks (sandbox_id, task_id, expires_at) VALUES (?, ?, ?)",
+        sandboxId,
+        taskId,
+        expires,
+      );
+      return true;
+    });
+  }
+
+  releaseDesktopLock(sandboxId: string, taskId: string): void {
+    this.run("DELETE FROM desktop_locks WHERE sandbox_id = ? AND task_id = ?", sandboxId, taskId);
   }
 
   findUserByName(name: string): User | undefined {
@@ -1003,6 +1117,26 @@ export class LincoDb {
         user_id TEXT,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS computers (
+        user_id TEXT PRIMARY KEY REFERENCES users(id),
+        sandbox_id TEXT,
+        status TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL,
+        machine_type TEXT NOT NULL,
+        workspace_path TEXT NOT NULL,
+        snapshot_id TEXT,
+        snapshot_status TEXT,
+        retention_note TEXT NOT NULL,
+        last_error TEXT,
+        last_used_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS desktop_locks (
+        sandbox_id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
     `);
     this.addColumn("tasks", "goal_json", "TEXT");
     this.addColumn("tasks", "fence", "INTEGER NOT NULL DEFAULT 0");
@@ -1057,6 +1191,24 @@ export class LincoDb {
 
   private run(sql: string, ...params: Sql[]): void {
     this.db.prepare(sql).run(...params);
+  }
+
+  private changes(sql: string, ...params: Sql[]): number {
+    const result = this.db.prepare(sql).run(...params) as { changes?: number };
+    return result.changes ?? 0;
+  }
+
+  private claimStaleComputer(row: ComputerBinding): boolean {
+    if (Date.now() - Date.parse(row.updatedAt) < 30_000) return false;
+    const now = nowIso();
+    return (
+      this.changes(
+        "UPDATE computers SET updated_at = ? WHERE user_id = ? AND status = 'creating' AND sandbox_id IS NULL AND updated_at = ?",
+        now,
+        row.userId,
+        row.updatedAt,
+      ) > 0
+    );
   }
 }
 
@@ -1250,6 +1402,45 @@ function mapAutomation(row: AutomationRow): Automation {
 function isBusy(caught: unknown): boolean {
   const message = caught instanceof Error ? caught.message : String(caught);
   return /SQLITE_BUSY|database is locked/i.test(message);
+}
+
+function isConstraint(caught: unknown): boolean {
+  const message = caught instanceof Error ? caught.message : String(caught);
+  return /SQLITE_CONSTRAINT|UNIQUE constraint failed/i.test(message);
+}
+
+interface ComputerRow {
+  user_id: string;
+  sandbox_id: string | null;
+  status: ComputerBinding["status"];
+  idempotency_key: string;
+  machine_type: string;
+  workspace_path: string;
+  snapshot_id: string | null;
+  snapshot_status: string | null;
+  retention_note: string;
+  last_error: string | null;
+  last_used_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapComputer(row: ComputerRow): ComputerBinding {
+  return {
+    userId: row.user_id,
+    sandboxId: row.sandbox_id,
+    status: row.status,
+    idempotencyKey: row.idempotency_key,
+    machineType: row.machine_type,
+    workspacePath: row.workspace_path,
+    snapshotId: row.snapshot_id,
+    snapshotStatus: row.snapshot_status,
+    retentionNote: row.retention_note,
+    lastError: row.last_error,
+    lastUsedAt: row.last_used_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function mapNotification(row: NotificationRow): Notification {

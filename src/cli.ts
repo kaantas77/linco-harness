@@ -24,7 +24,8 @@ linco bench --durable [--out reports]
 linco worker [--data .data] [--workers 1]
 Auth defaults to token. LINCO_AUTH=dev keeps the open loopback API.
 LINCO_BOOTSTRAP_TOKEN creates users. LINCO_ALLOW_LOOPBACK=1 opens local URLs.
-LINCO_SANDBOX=off runs shell and code mode without an OS sandbox.`);
+LINCO_SANDBOX=off runs shell and code mode without an OS sandbox.
+LINCO_COMPUTER=boat gives each user one Boat computer. BOAT_API_KEY stays in the server environment.`);
   process.exit(0);
 }
 
@@ -34,7 +35,7 @@ if (command === "serve") {
   const server = new HarnessServer(harness);
   harness.start();
   const port = await server.listen();
-  console.log(`linco listening on http://${config.host}:${port} with ${config.workerCount} workers (${config.authMode})`);
+  console.log(`linco listening on http://${config.host}:${port} with ${config.workerCount} workers (${config.authMode}, ${config.computer})`);
   if (config.authMode === "token" && !config.bootstrapToken && harness.bootstrapToken) {
     console.error("linco bootstrap token (shown once; it is not saved in the clear):");
     console.error(harness.bootstrapToken);

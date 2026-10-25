@@ -13,15 +13,20 @@ import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { loopbackHost } from "../config.js";
 import { hashToken, newToken } from "../security/tokens.js";
 import { approvalHash, assess } from "../security/policy.js";
+import { bindBoat } from "../boat/bind.js";
+import { createBoatClient } from "../boat/client.js";
+import { BoatSandboxManager } from "../boat/manager.js";
+import { modelAcceptsImages } from "../boat/vision.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
 import { recoveryDecision } from "./lease.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
-import { browserPrompt, toolsForPrompt } from "../tools/toolset.js";
+import { browserPrompt, toolsForPrompt, withBoatComputer } from "../tools/toolset.js";
 import { HttpBrowserProvider } from "../tools/http-browser.js";
 import type { ToolHost } from "../tools/host.js";
+import { localFiles } from "../tools/local-files.js";
 import { LocalComputerProvider } from "../tools/local-computer.js";
 import type { Automation, AutomationKind, Task, TaskClaim, TaskKind, User } from "../types.js";
 import { lastAssistantText } from "./transcript.js";
@@ -30,6 +35,8 @@ export interface HarnessOptions {
   config: LincoConfig;
   streamFn?: StreamFn;
   model?: Model<Api>;
+  /** Test double. Production builds the Boat client from BOAT_API_KEY. */
+  boat?: BoatSandboxManager;
 }
 
 export class Harness {
@@ -37,6 +44,7 @@ export class Harness {
   readonly db: LincoDb;
   readonly skills: SkillCatalog;
   readonly bootstrapToken: string | null;
+  private readonly boat: BoatSandboxManager | null;
   private readonly computer: LocalComputerProvider;
   private readonly browser: HttpBrowserProvider;
   private streamFn: StreamFn | undefined;
@@ -57,6 +65,22 @@ export class Harness {
     this.skills = new SkillCatalog(options.config.skillsDir);
     this.computer = new LocalComputerProvider(this.config.sandbox);
     this.browser = new HttpBrowserProvider({ allowLoopback: this.config.allowLoopback });
+    if (options.boat) {
+      this.boat = options.boat;
+    } else if (this.config.computer === "boat") {
+      if (!this.config.boatApiKey) throw new Error("BOAT_API_KEY is not set");
+      this.boat = new BoatSandboxManager({
+        client: createBoatClient({ apiKey: this.config.boatApiKey, basePath: this.config.boatBaseUrl }),
+        db: this.db,
+        machineType: this.config.boatMachineType,
+        ttlSeconds: this.config.boatTtlSeconds,
+        idleStopMs: this.config.boatIdleStopMs,
+        maxSeconds: this.config.boatMaxSeconds,
+        allowLoopback: this.config.allowLoopback,
+      });
+    } else {
+      this.boat = null;
+    }
     this.streamFn = options.streamFn;
     this.model = options.model;
     if (this.config.authMode === "token" && this.config.manageCredentials) {
@@ -106,7 +130,23 @@ export class Harness {
   }
 
   createSession(userId: string) {
-    return this.db.createSession(userId, this.skills, browserPrompt(this.skills.list()));
+    const base = browserPrompt(this.skills.list());
+    const prompt = this.config.computer === "boat" ? withBoatComputer(base) : base;
+    return this.db.createSession(userId, this.skills, prompt);
+  }
+
+  computerStatus(userId: string) {
+    if (!this.boat) {
+      const user = this.db.getUser(userId);
+      return { mode: "local" as const, workspacePath: user?.workspacePath ?? null };
+    }
+    return this.boat.describe(userId);
+  }
+
+  async ensureComputer(userId: string) {
+    if (!this.boat) return this.computerStatus(userId);
+    await this.boat.ensure(userId);
+    return this.boat.describe(userId);
   }
 
   async submit(
@@ -287,6 +327,7 @@ export class Harness {
         data: { fence: task.fence, workerId: task.workerId },
       });
     }
+    if (this.boat) void this.boat.reapIdle().catch(() => undefined);
   }
 
   private async execute(workerId: string, task: Task): Promise<void> {
@@ -327,8 +368,11 @@ export class Harness {
         });
       }
       const llm = await this.llm();
+      if (this.boat) await this.boat.ensure(task.userId);
+      const bound = this.boat ? bindBoat(this.boat, { userId: task.userId, taskId: task.id, acceptsImages: modelAcceptsImages(llm.model) }) : undefined;
+      const workspaceRoot = bound?.workspacePath ?? session.workspacePath;
       const host: ToolHost = {
-        workspaceRoot: session.workspacePath,
+        workspaceRoot,
         taskId: task.id,
         userId: task.userId,
         sessionId: session.id,
@@ -336,8 +380,10 @@ export class Harness {
         systemPrompt: session.systemPrompt,
         db: this.db,
         skills: this.skills,
-        browser: this.browser,
-        computer: this.computer,
+        browser: bound?.browser ?? this.browser,
+        computer: bound?.computer ?? this.computer,
+        files: bound?.files ?? localFiles(session.workspacePath),
+        ...(bound ? { desktop: bound.desktop } : {}),
         signal: abort.signal,
         claim,
         allowLoopback: this.config.allowLoopback,
@@ -452,7 +498,7 @@ export class Harness {
       const prompt = task.checkpoint?.continuation
         ? task.checkpoint.continuation
         : composeUserMessage(task.prompt, {
-            workspace: session.workspacePath,
+            workspace: workspaceRoot,
             now: new Date().toISOString(),
             memories: selectMemories(this.db.listMemories(task.userId), task.prompt).map((memory) => ({
               title: memory.title,

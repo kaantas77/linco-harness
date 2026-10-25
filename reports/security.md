@@ -9,7 +9,7 @@ Sandbox backend: seatbelt.
 | auth | yes | anonymous 401, cross-user task cancel approve and memory 404 |
 | dev-bind | yes | LINCO_AUTH=dev refuses 0.0.0.0 |
 | ssrf | yes | private DNS, loopback default, and metadata redirect blocked |
-| sandbox | yes | seatbelt blocked passwd, the other workspace, and loopback fetch |
+| sandbox | yes | seatbelt blocked passwd, the other workspace, loopback fetch, and extra mounts |
 | fence | yes | expired lease blocked goal, plan, child, transcript, and renew from both processes |
 
 ## Notes

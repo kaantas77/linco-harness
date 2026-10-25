@@ -83,6 +83,7 @@ export class HarnessServer {
     const taskObserve = match(path, "/v1/tasks/:id/observe");
     const task = match(path, "/v1/tasks/:id");
     const memories = match(path, "/v1/users/:id/memories");
+    const computer = match(path, "/v1/users/:id/computer");
     const memory = match(path, "/v1/memories/:id");
     const automations = match(path, "/v1/users/:id/automations");
     const notifications = match(path, "/v1/users/:id/notifications");
@@ -159,6 +160,16 @@ export class HarnessServer {
     if (method === "GET" && taskObserve) {
       const found = this.ownedTask(principal, idOf(taskObserve));
       send(response, 200, toNemoTrace(this.harness.db, found.id));
+      return;
+    }
+    if (method === "GET" && computer) {
+      this.owns(principal, idOf(computer));
+      send(response, 200, await this.harness.computerStatus(idOf(computer)));
+      return;
+    }
+    if (method === "POST" && computer) {
+      this.owns(principal, idOf(computer));
+      send(response, 201, await this.harness.ensureComputer(idOf(computer)));
       return;
     }
     if (method === "GET" && memories) {

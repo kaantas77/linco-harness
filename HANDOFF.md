@@ -1,6 +1,6 @@
 # Linco Harness — faz 5 devir notu
 
-Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. Faz 6, isteğin bağlamını kısalttı ve aynı görevleri açık/kapalı ölçtü. SQLite transkripti durur. Faz 7, aynı makinede iki Node sürecinin tek SQLite kuyruğunu kira ve çitle paylaşmasını ekledi. Faz 8, süresi dolmuş kirayı, görev yazılarını, HTTP kimliğini, SSRF kontrolünü ve kabuk izolasyonunu ekledi. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
+Bu metin, 25 Ekim 2026'daki backend'in durumudur. Faz 1 çekirdeği duruyor: Pi Agent döngüsü, warm worker, SQLite, bellek, skill, araçlar ve otomasyon yeniden yazılmadı. Faz 2 ölçüm katmanını ekledi. Faz 3, yeni oturumlara Playwright tarayıcısı ve Jev karar döngüsünü ekledi. Faz 4, ebeveynin worker'ı bırakıp çocuk bitince aynı görevden devam etmesini ekledi. Faz 5, bu kuyruğun üstüne hedef planı ekledi. Faz 6, isteğin bağlamını kısalttı ve aynı görevleri açık/kapalı ölçtü. SQLite transkripti durur. Faz 7, aynı makinede iki Node sürecinin tek SQLite kuyruğunu kira ve çitle paylaşmasını ekledi. Faz 8, süresi dolmuş kirayı, görev yazılarını, HTTP kimliğini, SSRF kontrolünü ve kabuk izolasyonunu ekledi. Faz 9, `LINCO_COMPUTER=boat` iken her kullanıcıya bir Boat sanal bilgisayarı bağlar. Yerel modun araç listesi aynı kaldı. `buildStablePrompt` baytları, v1 araç sırası ve `task_wait` açıklama metni aynı kaldı. Eski oturumlar `plan_write` kontrol listesini tutar. `web_fetch` ve eski oturumların araç listesi duruyor.
 
 Kod: `linco-harness/` (bu klasörün yanında Pi, DeepSeek Harness, Hermes ve NeMo duruyor; onlar referans. Yeni depo sadece `linco-harness`).
 
@@ -44,13 +44,13 @@ Veri: `node:sqlite`, dosya `dataDir/linco.sqlite`. Node 22'de bu API hâlâ expe
 
 ## Test
 
-`npm test`: 64 test geçer, `test/jev-live.test.ts` anahtarsız atlanır. `test/security.test.ts` kimlik, SSRF, sandbox ve süresi dolmuş kirayı kontrol eder. `test/durable.test.ts` iki süreci, kira dolumunu, belirsiz yan etkiyi ve ebeveyn/çocuk kurtarmayı scripted modelle koşar. `test/goal-fix.test.ts` bağımlılık yeniden bağlamasını ve adıma ait araç kanıtını kontrol eder. `test/context.test.ts` araç çifti, gerekçe, kısa transkript ve kayıtta kalan metni kontrol eder. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. `test/resume.test.ts` hatalı devamın aynı transkriptten yeniden denendiğini, devam sırasında işaretin durduğunu ve SIGKILL sonrası kira dolmadan açık çocuğun toplanmadığını kontrol eder. `test/plan.test.ts` bağımlılık, paralel adım, eksik kanıt, yeniden plan ve iptal sonrası planın durmasını kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
+`npm test`: 69 test geçer, `test/jev-live.test.ts` ve `test/boat-live.test.ts` anahtarsız atlanır. `test/boat.test.ts` sahte Boat API ile tek sanal makine, dosyanın durması, başka kullanıcı, host dizininin değişmemesi, masaüstü kilidi ve onayı kontrol eder. `test/security.test.ts` kimlik, SSRF, sandbox ve süresi dolmuş kirayı kontrol eder. `test/durable.test.ts` iki süreci, kira dolumunu, belirsiz yan etkiyi ve ebeveyn/çocuk kurtarmayı scripted modelle koşar. `test/goal-fix.test.ts` bağımlılık yeniden bağlamasını ve adıma ait araç kanıtını kontrol eder. `test/context.test.ts` araç çifti, gerekçe, kısa transkript ve kayıtta kalan metni kontrol eder. Faz 1'deki 15 test ve faz 2'deki 5 bench testi duruyor. `test/orchestrate.test.ts` park, örtüşme, başarısız çocuk, iptal ve süreç açılışında tek uyanışı kontrol eder. `test/resume.test.ts` hatalı devamın aynı transkriptten yeniden denendiğini, devam sırasında işaretin durduğunu ve SIGKILL sonrası kira dolmadan açık çocuğun toplanmadığını kontrol eder. `test/plan.test.ts` bağımlılık, paralel adım, eksik kanıt, yeniden plan ve iptal sonrası planın durmasını kontrol eder. Tarayıcı testleri politikayı, v1/v2/v3 araç sırasını, ref ile form doldurmayı, sekme yönetimini, profil kilidini, iptalde tarayıcının kapanmasını, anahtarsız `jev_run` reddini ve sahte Jev cevabıyla formun kaydını kontrol eder. `test/jev.test.ts` karar döngüsünü sahte TypeSafe cevabıyla kontrol eder. Canlı dosya `LINCO_JEV_LIVE=1` ister.
 
 Kapsananlar: sabit prompt ve kelime belleği, sembolik link kaçışı, kabuk politikası, cron, cache oranı, dosya yazımı, onaylanmadan silmeme ve onaydan sonra silme, iki worker'ın komutları örtüştürmesi, cron'un çift basmaması, webhook, HTTP kullanıcı/bellek/mesaj, yerel sayfanın `web_fetch` ile okunması, üç çevrimdışı bench senaryosu.
 
 `npm run build` geçti. `node dist/cli.js bench` üç senaryoyu da geçti: `write-note`, `code-list`, `delete-needs-approval`. CI dosyası `.github/workflows/ci.yml`. İçinde `npm ci`, `npx playwright install --with-deps chromium`, `npm test` ve `npm run build` var. Canlı API yoktur. Koşu `ubuntu-22.04` üzerindedir.
 
-GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 64 test ve build geçti. Canlı Jev testi varsayılan süitte yoktur. Canlı DeepSeek bağlam ölçümü `npm test` içinde yoktur. `linco bench --context` anahtar görünce ayrıca koşar.
+GitHub Actions hâlâ faturalama kilidi yüzünden runner açmıyor. Bu bir test hatası değil. Yerel 69 test ve `tsc --noEmit` geçti. Canlı Jev testi varsayılan süitte yoktur. Canlı DeepSeek bağlam ölçümü `npm test` içinde yoktur. Canlı Boat ölçümü de yoktur; `BOAT_API_KEY` bu koşuda yoktu. `linco bench --context` anahtar görünce ayrıca koşar.
 
 ## Canlı ölçüm
 
@@ -149,13 +149,13 @@ Tarama kör tekrar yapmaz. Araç izi yoksa ya da yalnız okuma izi varsa görev 
 
 Eski worker'ın transkripti ve terminal yazımı `fence` ile `status = 'running'` şartına bağlıdır. Kira el değişince eski yazı sıfır satır değiştirir. `resumeChildren` işareti kira kurtarmasında silinmez. Tamamlanmış çocuk yeniden yaratılmaz. Güvenli çocuk yeniden kuyruğa girer, biter ve ebeveyn `agent.continue()` ile aynı transkriptten devam eder.
 
-`linco serve` ve süreç içi worker döngüsü durur. Ayrı süreç `linco worker --data <dir>` ile açılır. Yeni kullanıcı mesajı yeni işletim sistemi süreci açmaz. Ağ dosya sistemiyle paylaşım yoktur. Redis veya Postgres yoktur. API varsayılan olarak token ister. `LINCO_AUTH=dev` yalnız loopback'te açıktır. `LINCO_ALLOW_LOOPBACK=1` yerel sayfa içindir. `LINCO_SANDBOX=off` kabuğu izolasyonsuz çalıştırır.
+`linco serve` ve süreç içi worker döngüsü durur. Ayrı süreç `linco worker --data <dir>` ile açılır. Yeni kullanıcı mesajı yeni işletim sistemi süreci açmaz. Ağ dosya sistemiyle paylaşım yoktur. Redis veya Postgres yoktur. API varsayılan olarak token ister. `LINCO_AUTH=dev` yalnız loopback'te açıktır. `LINCO_ALLOW_LOOPBACK=1` yerel sayfa içindir. `LINCO_SANDBOX=off` kabuğu izolasyonsuz çalıştırır. `LINCO_COMPUTER=boat` ve `BOAT_API_KEY` her kullanıcıya bir uzak bilgisayar bağlar. Anahtar modele, cevaba ve loga yazılmaz.
 
 Ölçüm `reports/durable.json` ve `reports/durable.md`. Mod `offline`. `performanceClaim` none. Scripted model. Doğrudan claim 164917 ns. Elli kira yenilemesinin ortalaması 15519 ns. Kuyruk beklemesi worker açılışı dahil: tek süreç 954 ms, iki süreç 660 ms. Güvenli çökme kurtarması 971 ms, belirsiz yazma incelemesi 874 ms, ebeveyn/çocuk kurtarması 886 ms. Çift yürütme 0. Kayıp transkript 0. Aynı oturumdaki ikinci görev birincinin bitmesini bekledi. Ebeveyn/çocuk kurtarma oranı 1. SQLite kilit sayacı bu koşuda 0. Bu sayılar bir sıralama değildir.
 
 ## Üretim engeli
 
-`SECURITY.md` kalan kapıları ayırır. HTTP artık varsayılan olarak token ister. `LINCO_AUTH=dev` yalnız loopback'te eski açık kullanımı bırakır. `web_fetch` özel adresleri, metadata'yı ve yönlendirme sonrası hedefi reddeder. Kabuk ve `code_run`, macOS seatbelt veya Linux bubblewrap içinde çalışır. Araç yoksa komut reddedilir. Aynı makinedeki iki süreç kirayı ve çiti kullanır. Süre dolmuş kira yeni yazı başlatamaz. Bu, exactly-once değildir ve yazılmış dosyayı geri almaz. Ağ üzerinden paylaşılan bir SQLite dosyası desteklenmez. Darwin'de adres alanı için güvenilir bir `ulimit` yoktur. Webhook adresi hâlâ bir yetenek URL'sidir.
+`SECURITY.md` kalan kapıları ayırır. HTTP artık varsayılan olarak token ister. `LINCO_AUTH=dev` yalnız loopback'te eski açık kullanımı bırakır. `web_fetch` özel adresleri, metadata'yı ve yönlendirme sonrası hedefi reddeder. Kabuk ve `code_run`, macOS seatbelt veya Linux bubblewrap içinde çalışır. Araç yoksa komut reddedilir. `/Volumes`, `/mnt`, `/opt` ve `/Library` okuması kapalıdır. Aynı makinedeki iki süreç kirayı ve çiti kullanır. Süre dolmuş kira yeni yazı başlatamaz. `LINCO_COMPUTER=boat` iken dosya, kabuk ve masaüstü o kullanıcının sanal makinesindedir. Yerel mod durur. Bu, exactly-once değildir ve yazılmış dosyayı geri almaz. Ağ üzerinden paylaşılan bir SQLite dosyası desteklenmez. Darwin'de adres alanı için güvenilir bir `ulimit` yoktur. Webhook adresi hâlâ bir yetenek URL'sidir. Canlı Boat hesabı bu fazda koşulmadı.
 
 ## Bilinçli olarak yapılmayanlar
 
@@ -193,17 +193,19 @@ Sırayı bozma. Pi çekirdeği duruyor. NeMo bu sırada yok; mevcut ölçüm yet
 
 8. Aynı makinede iki süreç kuruldu. Ayrıntı yukarıdaki bölümde. Çok makineli kuyruk ve exactly-once yoktur.
 
-9. Kimlik, SSRF ve kabuk izolasyonu kuruldu. Ayrıntı `SECURITY.md` ve `reports/security.md` içindedir. `LINCO_AUTH=dev` ve `LINCO_SANDBOX=off` üretim modu değildir. Bundan sonraki hedef yeni özellik yığmak değildir. Sıradaki büyük iş, gerçek kullanıcı yüküyle ölçek ve dayanıklılık ölçmektir.
+9. Kimlik, SSRF ve kabuk izolasyonu kuruldu. Ayrıntı `SECURITY.md` ve `reports/security.md` içindedir. `LINCO_AUTH=dev` ve `LINCO_SANDBOX=off` üretim modu değildir.
 
-10. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
+10. Boat bilgisayarı kuruldu. `LINCO_COMPUTER=boat` her kullanıcıya bir sanal makine bağlar. Dosya, kabuk ve masaüstü o makinededir. Yerel mod eski testlerde durur. Canlı Boat koşusu yoktur. Ayrıntı `reports/boat.md` içindedir. Sıradaki büyük iş, gerçek kullanıcı yüküyle ölçek ve dayanıklılık ölçmektir.
 
-11. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
+11. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
-12. Yük. Aynı makinede gerçek kullanıcı sayısı, kuyruk beklemesi ve çökme sonrası toparlanma. Yeni agent özelliği eklemeden ölç.
+12. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
 
-13. Başka makine. Aynı SQLite dosyasını ağ üzerinden paylaşma. Kira, yazılmış dosyayı geri almaz.
+13. Yük. Aynı makinede gerçek kullanıcı sayısı, kuyruk beklemesi ve çökme sonrası toparlanma. Yeni agent özelliği eklemeden ölç.
 
-14. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
+14. Başka makine. Aynı SQLite dosyasını ağ üzerinden paylaşma. Kira, yazılmış dosyayı geri almaz.
+
+15. NeMo ertelendi. `linco.observe.v1` izi duruyor. Harness'in içine NeMo runtime'ı bağlama. Mevcut bench, bu sıra için yeterli ölçüm.
 
 ## Doğrulama
 
@@ -230,10 +232,15 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 
 - `src/agent/runtime.ts` — kuyruk, worker, kira, Pi Agent, onay, çocuk parkı ve devam
 - `src/agent/lease.ts` — güvenli araç ile belirsiz yan etki ayrımı
-- `src/security/isolate.ts` — macOS seatbelt ve Linux bubblewrap
+- `src/security/isolate.ts` — macOS seatbelt ve Linux bubblewrap. Ek mount ve `/opt` okuması kapalıdır
 - `src/security/tokens.ts` — API token özeti
+- `src/boat/manager.ts` — kullanıcı başına tek Boat sanal makinesi
+- `src/boat/client.ts` — `@boatdev/sdk` uyarlaması
+- `src/boat/mcp.ts` — sanal makinedeki hazır Cua Driver MCP çağrısı
 - `test/security.test.ts` — kimlik, SSRF, sandbox ve süresi dolmuş kira
+- `test/boat.test.ts` — sahte Boat API
 - `reports/security.json`, `reports/security.md` — `performanceClaim: none`
+- `reports/boat.json`, `reports/boat.md` — offline, `performanceClaim: none`, canlı koşu yok
 - `src/agent/children.ts` — park işareti, çocuk raporu, hatalı asistan mesajını düşürme
 - `src/agent/goal.ts` — hedef, bağımlılık, kanıt ve yeniden plan
 - `src/tools/goal-tools.ts` — v4 hedef araçları

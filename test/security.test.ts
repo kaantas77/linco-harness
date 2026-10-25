@@ -188,7 +188,18 @@ describe("sandbox", () => {
         timeoutMs: 5_000,
       });
       expect(network.exitCode).not.toBe(0);
-      record("sandbox", true, `${backend} blocked passwd, the other workspace, and loopback fetch`);
+      const mounts = await computer.exec({
+        command: `node -e "const fs=require('fs'); function code(p){try{fs.readdirSync(p); return 'ok'}catch(e){return e.code||'err'}}; process.stdout.write([code('/Volumes'), code('/opt'), code('/mnt')].join(' '))"` ,
+        cwd: root,
+        timeoutMs: 5_000,
+      });
+      expect(mounts.stdout).toContain("EPERM");
+      expect(mounts.stdout).not.toContain("ok");
+      const wrapped = bwrapArgs(root).join(" ");
+      expect(wrapped).not.toContain("/opt");
+      expect(wrapped).not.toContain("/Volumes");
+      expect(wrapped).not.toContain("/mnt");
+      record("sandbox", true, `${backend} blocked passwd, the other workspace, loopback fetch, and extra mounts`);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(other, { recursive: true, force: true });

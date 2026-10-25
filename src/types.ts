@@ -201,3 +201,22 @@ export interface UsageSummary {
   costUsd: number;
   cacheHitRatio: number;
 }
+
+export type ComputerStatus = "creating" | "ready" | "stopped" | "error";
+
+/** One Boat sandbox bound to one Linco user. The API key is not stored here. */
+export interface ComputerBinding {
+  userId: string;
+  sandboxId: string | null;
+  status: ComputerStatus;
+  idempotencyKey: string;
+  machineType: string;
+  workspacePath: string;
+  snapshotId: string | null;
+  snapshotStatus: string | null;
+  retentionNote: string;
+  lastError: string | null;
+  lastUsedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}

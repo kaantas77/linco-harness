@@ -102,6 +102,8 @@ export interface EvidenceLookup {
   workspaceRoot: string;
   taskId: string;
   db: LincoDb;
+  /** When set, file criteria use this instead of the host disk. Null means the file is missing. */
+  readFile?: (relativePath: string) => string | null;
 }
 
 export function applyEvidence(plan: GoalPlan, stepId: string, lookup: EvidenceLookup): GoalPlan {
@@ -169,6 +171,19 @@ function evaluateStep(step: GoalStep, lookup: EvidenceLookup): GoalStep {
 function evaluateCriterion(criterion: GoalCriterion, step: GoalStep, lookup: EvidenceLookup): GoalCriterion {
   const check = criterion.check;
   if (check.kind === "file_exists" || check.kind === "file_contains") {
+    if (lookup.readFile) {
+      let body: string | null;
+      try {
+        body = lookup.readFile(check.path);
+      } catch (caught) {
+        const reason = caught instanceof Error ? caught.message : String(caught);
+        return { ...criterion, status: "blocked", evidence: reason };
+      }
+      if (body === null) return { ...criterion, status: "unverified", evidence: `missing ${check.path}` };
+      if (check.kind === "file_exists") return { ...criterion, status: "verified", evidence: `exists ${check.path}` };
+      if (!body.includes(check.text)) return { ...criterion, status: "unverified", evidence: `missing text in ${check.path}` };
+      return { ...criterion, status: "verified", evidence: `contains text in ${check.path}` };
+    }
     let file: string;
     try {
       file = resolveInside(lookup.workspaceRoot, check.path);

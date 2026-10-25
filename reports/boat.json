@@ -1,0 +1,34 @@
+{
+  "createdAt": "2026-10-25T18:14:03.175Z",
+  "mode": "offline",
+  "performanceClaim": "none",
+  "liveExecuted": false,
+  "liveReason": "BOAT_API_KEY was not used; LINCO_BOAT_LIVE is off",
+  "cases": [
+    {
+      "id": "persist",
+      "ok": true,
+      "detail": "one sandbox per user; home file survived; /tmp did not; the other user cannot read it"
+    },
+    {
+      "id": "limits",
+      "ok": true,
+      "detail": "expired disk, usage cap, metadata redirect, secret redaction, desktop lock, and idle stop"
+    },
+    {
+      "id": "task",
+      "ok": true,
+      "detail": "one task wrote and read on the sandbox; the host workspace did not change"
+    },
+    {
+      "id": "desktop",
+      "ok": true,
+      "detail": "click waits for approval; text-only models receive the tree; Flash accepts images and Pro does not"
+    },
+    {
+      "id": "auth",
+      "ok": true,
+      "detail": "another user's computer route is 404 and the payload has no Boat credential"
+    }
+  ]
+}

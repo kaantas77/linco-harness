@@ -28,6 +28,14 @@ export interface LincoConfig {
   allowLoopback: boolean;
   /** `require` refuses shell and code mode when the OS sandbox is missing. */
   sandbox: "require" | "off";
+  /** `local` keeps the host workspace. `boat` binds each user to one remote computer. */
+  computer: "local" | "boat";
+  boatApiKey?: string;
+  boatBaseUrl?: string;
+  boatMachineType: "small" | "default" | "large" | "xlarge";
+  boatTtlSeconds: number;
+  boatIdleStopMs: number;
+  boatMaxSeconds: number;
 }
 
 export function loopbackHost(host: string): boolean {
@@ -39,9 +47,9 @@ export function loadConfig(
   overrides: Partial<LincoConfig> = {},
   env: NodeJS.ProcessEnv = process.env,
 ): LincoConfig {
-  const dataDir = overrides.dataDir ?? env.LINCO_DATA_DIR ?? path.resolve(".data");
+  const computer = overrides.computer ?? (env.LINCO_COMPUTER === "boat" ? "boat" : "local");
   return {
-    dataDir,
+    dataDir: overrides.dataDir ?? env.LINCO_DATA_DIR ?? path.resolve(".data"),
     skillsDir: overrides.skillsDir ?? env.LINCO_SKILLS_DIR ?? path.resolve("skills"),
     host: overrides.host ?? env.LINCO_HOST ?? "127.0.0.1",
     port: overrides.port ?? numberEnv(env.LINCO_PORT, 8787),
@@ -59,6 +67,13 @@ export function loadConfig(
     manageCredentials: overrides.manageCredentials ?? true,
     allowLoopback: overrides.allowLoopback ?? env.LINCO_ALLOW_LOOPBACK === "1",
     sandbox: overrides.sandbox ?? (env.LINCO_SANDBOX === "off" ? "off" : "require"),
+    computer,
+    boatApiKey: computer === "boat" ? present(overrides.boatApiKey ?? env.BOAT_API_KEY) : undefined,
+    boatBaseUrl: present(overrides.boatBaseUrl ?? env.BOAT_API_BASE),
+    boatMachineType: machineType(overrides.boatMachineType ?? env.LINCO_BOAT_TYPE),
+    boatTtlSeconds: overrides.boatTtlSeconds ?? numberEnv(env.LINCO_BOAT_TTL_SECONDS, 3_600),
+    boatIdleStopMs: overrides.boatIdleStopMs ?? numberEnv(env.LINCO_BOAT_IDLE_MS, 15 * 60_000),
+    boatMaxSeconds: overrides.boatMaxSeconds ?? numberEnv(env.LINCO_BOAT_MAX_SECONDS, 7_200),
   };
 }
 
@@ -71,4 +86,9 @@ function numberEnv(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function machineType(value: string | undefined): "small" | "default" | "large" | "xlarge" {
+  if (value === "default" || value === "large" || value === "xlarge" || value === "small") return value;
+  return "small";
 }

@@ -11,6 +11,7 @@ import {
   type GoalDraftStep,
 } from "../agent/goal.js";
 import type { GoalCheck, GoalPlan } from "../types.js";
+import { WorkspaceEscapeError } from "../security/workspace.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
 import type { ToolHost } from "./host.js";
@@ -129,6 +130,7 @@ export function goalTools(host: ToolHost): AgentTool[] {
           workspaceRoot: host.workspaceRoot,
           taskId: host.taskId,
           db: host.db,
+          ...(host.files ? { readFile: await fileSnapshot(host, plan, params.stepId) } : {}),
         });
         if (!host.db.setGoal(host.taskId, saved, host.claim)) return error("worker lease is no longer held");
         const step = saved.steps.find((item) => item.id === params.stepId);
@@ -155,6 +157,30 @@ export function goalTools(host: ToolHost): AgentTool[] {
 
 function currentGoal(host: ToolHost): GoalPlan | null {
   return host.db.getTask(host.taskId)?.goal ?? null;
+}
+
+async function fileSnapshot(host: ToolHost, plan: GoalPlan, stepId: string): Promise<(relativePath: string) => string | null> {
+  const step = plan.steps.find((item) => item.id === stepId);
+  const found = new Map<string, string | null | Error>();
+  const files = host.files;
+  if (files && step) {
+    for (const criterion of step.criteria) {
+      const check = criterion.check;
+      if (check.kind !== "file_exists" && check.kind !== "file_contains") continue;
+      try {
+        found.set(check.path, (await files.read(check.path)).text);
+      } catch (caught) {
+        if (caught instanceof WorkspaceEscapeError) found.set(check.path, caught);
+        else if (caught instanceof Error && caught.message.startsWith("file not found")) found.set(check.path, null);
+        else found.set(check.path, caught instanceof Error ? caught : new Error(String(caught)));
+      }
+    }
+  }
+  return (relativePath) => {
+    const value = found.get(relativePath);
+    if (value instanceof Error) throw value;
+    return value ?? null;
+  };
 }
 
 export type { GoalCheck };

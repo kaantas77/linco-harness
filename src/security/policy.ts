@@ -12,6 +12,9 @@ const PAYMENT = /\b(stripe|paypal|checkout|wire transfer|iban)\b/i;
 
 export function assess(toolName: string, args: unknown, workspaceRoot: string): Assessment {
   if (toolName === "shell_exec") return assessShell(readCommand(args), workspaceRoot);
+  if (toolName === "desktop_click" || toolName === "desktop_type" || toolName === "desktop_window" || toolName === "desktop_browser") {
+    return { action: "approve", risk: "exec", reason: "Desktop input on the Boat computer needs user approval." };
+  }
   if (toolName === "fs_delete") {
     return { action: "approve", risk: "destructive", reason: "Deleting a file needs user approval." };
   }

@@ -33,6 +33,7 @@ export async function withHarness(
       manageCredentials: false,
       allowLoopback: true,
       sandbox: "require",
+      computer: "local",
     }),
     model: SCRIPT_MODEL,
     streamFn: options.streamFn ?? scriptedStream(options.steps ?? [{ text: "ok" }]),

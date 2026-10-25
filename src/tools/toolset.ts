@@ -3,6 +3,7 @@ import { buildStablePrompt } from "../prompt/layout.js";
 import type { SkillSummary } from "../skills/catalog.js";
 import { browserTools, jevTools } from "./browser-tools.js";
 import { createTools } from "./create-tools.js";
+import { desktopTools } from "./desktop-tools.js";
 import { goalTools } from "./goal-tools.js";
 import type { ToolHost } from "./host.js";
 
@@ -60,6 +61,23 @@ export function browserPrompt(skills: SkillSummary[]): string {
   return withPlanToolset(buildStablePrompt(skills));
 }
 
+export const BOAT_TOOLSET_MARK = "linco-computer: boat";
+
+const BOAT_SUFFIX = [
+  BOAT_TOOLSET_MARK,
+  "Dosya, kabuk ve masaüstü bu kullanıcının Boat bilgisayarındadır. Çalışma yolu /home/user/linco.",
+  "Host dosya sistemi bu araçların hedefi değildir.",
+  "browser_* ve jev_run bu oturumda yoktur. Masaüstü için desktop_state, desktop_tree ve desktop_screenshot kullan.",
+  "desktop_click, desktop_type, desktop_window ve desktop_browser onay ister.",
+  "Model görüntü kabul etmiyorsa ekran görüntüsü yerine erişilebilirlik ağacı döner.",
+].join("\n");
+
+/** New Boat sessions only. Local sessions keep the stored prompt bytes. */
+export function withBoatComputer(prompt: string): string {
+  if (prompt.includes(BOAT_TOOLSET_MARK)) return prompt;
+  return `${prompt}\n\n${BOAT_SUFFIX}`;
+}
+
 export function sessionHasBrowser(prompt: string): boolean {
   return prompt.includes(BROWSER_TOOLSET_MARK) || prompt.includes(JEV_TOOLSET_MARK);
 }
@@ -72,9 +90,14 @@ export function sessionHasPlan(prompt: string): boolean {
   return prompt.includes(PLAN_TOOLSET_MARK);
 }
 
-/** v1 sessions keep createTools. v2 appends browser tools. v3 appends browser_select and jev_run. v4 appends goal tools. */
+/** v1 sessions keep createTools. v2 appends browser tools. v3 appends browser_select and jev_run. v4 appends goal tools.
+ * A Boat binding replaces the host browser with the sandbox desktop and does not add Playwright tools. */
 export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
   const base = createTools(host);
+  if (host.desktop) {
+    const desktop = [...base, ...desktopTools(host)];
+    return sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
+  }
   if (!sessionHasBrowser(prompt)) return base;
   const browser = browserTools(host);
   const withBrowser = sessionHasJev(prompt) ? [...base, ...browser, ...jevTools(host)] : [...base, ...browser];

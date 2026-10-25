@@ -1,5 +1,5 @@
 {
-  "createdAt": "2026-10-25T17:47:07.438Z",
+  "createdAt": "2026-10-25T18:14:05.269Z",
   "mode": "offline",
   "performanceClaim": "none",
   "sandbox": "seatbelt",
@@ -22,7 +22,7 @@
     {
       "id": "sandbox",
       "ok": true,
-      "detail": "seatbelt blocked passwd, the other workspace, and loopback fetch"
+      "detail": "seatbelt blocked passwd, the other workspace, loopback fetch, and extra mounts"
     },
     {
       "id": "fence",

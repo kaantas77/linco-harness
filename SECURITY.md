@@ -26,11 +26,21 @@ Kalan kapı: DNS kaydı kontrol ile bağlantı arasında değişirse sabitlenmi�
 
 `shell_exec` macOS'ta `sandbox-exec` ile çalışır. Linux'ta `/usr/bin/bwrap` varsa bubblewrap kullanır. İkisi de yoksa komut çalışmaz. `LINCO_SANDBOX=off` bu reddi kaldırır ve izolasyon yoktur.
 
-Seatbelt, kullanıcı evini, `/private` altını ve `/etc` içeriğini okumayı reddeder. Yazma yalnız görev çalışma alanındadır. Ağ reddedilir. Çalışma zamanının kendi dizini, `/usr`, `/bin`, `/System`, `/Library`, `/opt` ve `/dev` okunabilir. Süreç başlayabilsin diye bu araç ağaçları açıktır. CPU saniyesi, süreç sayısı, açık dosya ve dosya boyutu `ulimit` ile sınırlanır. Duvar saati araç zaman aşımıdır.
+Seatbelt, kullanıcı evini, `/private` altını, `/etc` içeriğini, `/Volumes`, `/mnt`, `/media`, `/Network`, `/opt`, `/Library` ve `/Applications` okumayı reddeder. Yazma yalnız görev çalışma alanındadır. Ağ reddedilir. Çalışma zamanının kendi dizini, `/usr`, `/bin`, `/sbin`, `/System` ve `/dev` okunabilir. Süreç başlayabilsin diye bu araç ağaçları açıktır. CPU saniyesi, süreç sayısı, açık dosya ve dosya boyutu `ulimit` ile sınırlanır. Duvar saati araç zaman aşımıdır.
 
 `code_run` sandbox zorunluyken ayrı bir Node sürecindedir. Araç çağrıları ebeveyne döner. Süreç aynı dosya ve ağ sınırındadır. `vm` tek başına güvenlik sınırı sayılmaz.
 
-Kalan kapı: Darwin `ulimit -v` güvenilir bir adres alanı sınırı vermez. Bellek tavanı iddia edilmez. `/opt` ve sistem dizinleri okunabilir. İki kullanıcının çocukları aynı çalışma alanına yazarsa dosya çakışabilir. Çocuklar kullanıcının çalışma alanını paylaşır. Ayrı kullanıcıların dizinleri sandbox tarafından ayrılır. Yazılmış dosya, kira düşünce geri alınmaz.
+Kalan kapı: Darwin `ulimit -v` güvenilir bir adres alanı sınırı vermez. Bellek tavanı iddia edilmez. `/usr`, `/bin` ve `/System` okunabilir. İki kullanıcının çocukları aynı çalışma alanına yazarsa dosya çakışabilir. Çocuklar kullanıcının çalışma alanını paylaşır. Ayrı kullanıcıların dizinleri sandbox tarafından ayrılır. Yazılmış dosya, kira düşünce geri alınmaz.
+
+## Boat
+
+`LINCO_COMPUTER=boat` her Linco kullanıcısına bir sanal makine bağlar. Oluşturma `noEnv` kullanır ve hesabın gizli değişkenlerini makineye koymaz. `BOAT_API_KEY` yalnız süreç ortamındadır. Araç sonucu, görev hatası ve HTTP cevabı anahtarı, `on.boat.dev` adresini ve `_token` değerini yazmaz. Masaüstü izleme URL'si saklanmaz.
+
+Dosya, kabuk ve sayfa okuma o makinede çalışır. Host dizini bu araçlarla değişmez. Başka kullanıcının makinesine komut gitmez. Masaüstü kilitlidir. Tıklama, yazma, pencere ve tarayıcı açma onay ister. Model görüntü kabul etmiyorsa ağaç döner ve görüntü işlenmiş sayılmaz.
+
+Durmuş diskin Boat belgesinde 14 gün kaldığı, `/home/user` içinin durduğu, `/tmp`, `~/.cache` ve çalışan süreçlerin durmadığı yazılır. Sahte API bu kuralı uygular. `reports/boat.md` canlı bir Boat ölçümü değildir.
+
+Kalan kapı: canlı hesap bu fazda koşulmadı. İptal, uzak komutun bitmesini beklemez. `code_run` yorumlayıcısı hosttaki kapılı süreçte kalır; çağırdığı dosya ve kabuk araçları Boat modunda makineye gider. Sanal makinedeki `web_fetch` adres kontrolünü hostta yapar, sonra sabitlenmiş adresle makinede `curl` çalıştırır. Makinenin kendi sonraki bağlantısı bu kontrolün dışında kalabilir. Boşta duran makine `LINCO_BOAT_IDLE_MS` sonra durur. `LINCO_BOAT_MAX_SECONDS` aşılınca yeni komut reddedilir.
 
 ## Kira ve çit
 

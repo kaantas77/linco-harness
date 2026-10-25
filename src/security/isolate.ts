@@ -72,10 +72,17 @@ function seatbeltProfile(workspace: string): string {
     '(deny file-read-data (subpath "/etc"))',
     '(deny file-read-data (subpath "/Users"))',
     '(deny file-read-data (subpath "/private"))',
+    '(deny file-read-data (subpath "/Volumes"))',
+    '(deny file-read-data (subpath "/mnt"))',
+    '(deny file-read-data (subpath "/media"))',
+    '(deny file-read-data (subpath "/Network"))',
+    '(deny file-read-data (subpath "/opt"))',
+    '(deny file-read-data (subpath "/Library"))',
+    '(deny file-read-data (subpath "/Applications"))',
     `(allow file-read-data file-write* (subpath ${scheme(workspace)}))`,
     `(allow file-read-data (subpath ${scheme(runtimeRoot())}))`,
   ];
-  for (const dir of ["/usr", "/bin", "/sbin", "/System", "/Library", "/opt", "/dev", "/private/var/select"]) {
+  for (const dir of ["/usr", "/bin", "/sbin", "/System", "/dev", "/private/var/select"]) {
     if (fs.existsSync(dir)) lines.push(`(allow file-read-data (subpath ${scheme(dir)}))`);
   }
   lines.push("(deny network*)");
