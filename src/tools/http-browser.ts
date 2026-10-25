@@ -1,53 +1,92 @@
+import http from "node:http";
+import https from "node:https";
+import { isIP } from "node:net";
 import { clip } from "../json.js";
+import { inspectDestination, NavigationBlocked, type NavOptions } from "../browser/navigation-policy.js";
 import type { BrowserProvider, PageSnapshot } from "./browser.js";
 
 const TEXT_LIMIT = 20_000;
 const BYTE_LIMIT = 200_000;
-const BLOCKED_HOSTS = new Set(["169.254.169.254", "metadata.google.internal", "169.254.170.2"]);
+const HOPS = 5;
 
-/** Stateless HTTP read. A later browser provider can add a persistent profile without changing `web_fetch`. */
+/** Stateless HTTP read. Each hop is checked again and the socket is pinned to that address. */
 export class HttpBrowserProvider implements BrowserProvider {
   readonly id = "http-fetch";
 
+  constructor(private readonly options: NavOptions = {}) {}
+
   async fetchPage(url: string, signal?: AbortSignal): Promise<PageSnapshot> {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("only http and https URLs are allowed");
+    let current = url;
+    for (let hop = 0; hop < HOPS; hop += 1) {
+      const destination = await inspectDestination(current, this.options);
+      const pin = destination.addresses[0];
+      if (!pin) throw new NavigationBlocked("that host did not resolve");
+      const response = await requestPinned(destination.url, pin, signal);
+      if (response.status >= 300 && response.status < 400) {
+        const location = header(response.headers.location);
+        if (!location) throw new NavigationBlocked("redirect is missing a location");
+        current = new URL(location, destination.url).toString();
+        continue;
+      }
+      const raw = response.body;
+      const contentType = header(response.headers["content-type"]) ?? "";
+      const text = contentType.includes("html") || raw.trimStart().startsWith("<") ? htmlToText(raw) : raw.trim();
+      const clipped = clip(text, TEXT_LIMIT);
+      return { url: current, status: response.status, text: clipped, truncated: clipped !== text };
     }
-    if (BLOCKED_HOSTS.has(parsed.hostname)) throw new Error("that host is blocked");
-    const response = await fetch(parsed, { signal, redirect: "follow" });
-    const raw = await readLimited(response);
-    const contentType = response.headers.get("content-type") ?? "";
-    const text = contentType.includes("html") || raw.trimStart().startsWith("<") ? htmlToText(raw) : raw.trim();
-    const clipped = clip(text, TEXT_LIMIT);
-    return { url: response.url || parsed.toString(), status: response.status, text: clipped, truncated: clipped !== text };
+    throw new NavigationBlocked("too many redirects");
   }
 }
 
-async function readLimited(response: Response): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (size < BYTE_LIMIT) {
-    const next = await reader.read();
-    if (next.done) break;
-    size += next.value.byteLength;
-    chunks.push(next.value);
-  }
-  await reader.cancel().catch(() => undefined);
-  return new TextDecoder().decode(concat(chunks)).slice(0, BYTE_LIMIT);
+function requestPinned(
+  target: URL,
+  pin: string,
+  signal?: AbortSignal,
+): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
+  const lib = target.protocol === "https:" ? https : http;
+  const family = isIP(pin) === 6 ? 6 : 4;
+  const port = target.port ? Number(target.port) : target.protocol === "https:" ? 443 : 80;
+  return new Promise((resolve, reject) => {
+    const req = lib.request(
+      {
+        protocol: target.protocol,
+        hostname: target.hostname,
+        servername: target.hostname,
+        port,
+        path: `${target.pathname}${target.search}`,
+        method: "GET",
+        headers: { host: target.host, accept: "text/html,text/plain,*/*", "user-agent": "linco-fetch" },
+        lookup: (_hostname, _options, callback) => {
+          callback(null, pin, family);
+        },
+        signal,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        response.on("data", (chunk: Buffer) => {
+          if (size >= BYTE_LIMIT) return;
+          size += chunk.byteLength;
+          chunks.push(chunk);
+        });
+        response.on("end", () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            headers: response.headers,
+            body: Buffer.concat(chunks).subarray(0, BYTE_LIMIT).toString("utf8"),
+          });
+        });
+        response.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
 }
 
-function concat(chunks: Uint8Array[]): Uint8Array {
-  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return merged;
+function header(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
 }
 
 export function htmlToText(html: string): string {

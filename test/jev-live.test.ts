@@ -24,7 +24,7 @@ describe.skipIf(!live)("live Jev", () => {
       response.end(`<!doctype html><title>Contact</title><h1>Contact</h1>
         <form action="/done" method="get"><label for="email">Email</label><input id="email" name="email" /><button type="submit">Save</button></form>`);
     });
-    const target = { workspaceRoot: workspace, taskId: "task-jev-live", signal: new AbortController().signal };
+    const target = { workspaceRoot: workspace, taskId: "task-jev-live", signal: new AbortController().signal, allowLoopback: true };
     try {
       await openBrowser(target, site.url);
       const result = await runDelegatedJev({

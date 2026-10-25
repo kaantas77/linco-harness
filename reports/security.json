@@ -1,0 +1,33 @@
+{
+  "createdAt": "2026-10-25T17:47:07.438Z",
+  "mode": "offline",
+  "performanceClaim": "none",
+  "sandbox": "seatbelt",
+  "cases": [
+    {
+      "id": "auth",
+      "ok": true,
+      "detail": "anonymous 401, cross-user task cancel approve and memory 404"
+    },
+    {
+      "id": "dev-bind",
+      "ok": true,
+      "detail": "LINCO_AUTH=dev refuses 0.0.0.0"
+    },
+    {
+      "id": "ssrf",
+      "ok": true,
+      "detail": "private DNS, loopback default, and metadata redirect blocked"
+    },
+    {
+      "id": "sandbox",
+      "ok": true,
+      "detail": "seatbelt blocked passwd, the other workspace, and loopback fetch"
+    },
+    {
+      "id": "fence",
+      "ok": true,
+      "detail": "expired lease blocked goal, plan, child, transcript, and renew from both processes"
+    }
+  ]
+}

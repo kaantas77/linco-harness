@@ -31,6 +31,8 @@ import { cacheHitRatio } from "../llm/usage.js";
 type Sql = string | number | null;
 
 const OPEN_TASK = new Set<TaskStatus>(["queued", "running", "waiting_children", "waiting_approval"]);
+const LIVE_LEASE =
+  "fence = ? AND worker_id = ? AND status = 'running' AND lease_until IS NOT NULL AND lease_until >= ?";
 
 export class LincoDb {
   private readonly db: DatabaseSync;
@@ -67,6 +69,37 @@ export class LincoDb {
       user.createdAt,
     );
     return user;
+  }
+
+  replaceBootstrap(tokenHash: string): void {
+    this.transaction(() => {
+      this.run("DELETE FROM credentials WHERE kind = 'bootstrap'");
+      this.run(
+        "INSERT INTO credentials (token_hash, kind, user_id, created_at) VALUES (?, 'bootstrap', NULL, ?)",
+        tokenHash,
+        nowIso(),
+      );
+    });
+  }
+
+  issueUserToken(userId: string, tokenHash: string): void {
+    this.run(
+      "INSERT INTO credentials (token_hash, kind, user_id, created_at) VALUES (?, 'user', ?, ?)",
+      tokenHash,
+      userId,
+      nowIso(),
+    );
+  }
+
+  principalForToken(tokenHash: string): { kind: "bootstrap" } | { kind: "user"; userId: string } | undefined {
+    const row = this.one<{ kind: string; user_id: string | null }>(
+      "SELECT kind, user_id FROM credentials WHERE token_hash = ?",
+      tokenHash,
+    );
+    if (!row) return undefined;
+    if (row.kind === "bootstrap") return { kind: "bootstrap" };
+    if (row.kind === "user" && row.user_id) return { kind: "user", userId: row.user_id };
+    return undefined;
   }
 
   getUser(id: string): User | undefined {
@@ -131,9 +164,11 @@ export class LincoDb {
     if (claim) {
       guard = ` AND EXISTS (
         SELECT 1 FROM tasks
-        WHERE tasks.id = ? AND tasks.session_id = sessions.id AND tasks.fence = ? AND tasks.worker_id = ? AND tasks.status = 'running'
+        WHERE tasks.id = ? AND tasks.session_id = sessions.id
+          AND tasks.fence = ? AND tasks.worker_id = ? AND tasks.status = 'running'
+          AND tasks.lease_until IS NOT NULL AND tasks.lease_until >= ?
       )`;
-      params.push(claim.taskId, claim.fence, claim.workerId);
+      params.push(claim.taskId, claim.fence, claim.workerId, nowIso());
     }
     const result = this.db
       .prepare(`UPDATE sessions SET transcript_json = ?, title = COALESCE(?, title), updated_at = ? WHERE id = ?${guard}`)
@@ -225,9 +260,9 @@ export class LincoDb {
       .prepare(
         `UPDATE tasks
          SET heartbeat_at = ?, lease_until = ?
-         WHERE id = ? AND fence = ? AND worker_id = ? AND status = 'running'`,
+         WHERE id = ? AND ${LIVE_LEASE}`,
       )
-      .run(now, leaseUntil, taskId, fence, workerId);
+      .run(now, leaseUntil, taskId, fence, workerId, now);
     this.renews += 1;
     this.renewNs += Number(process.hrtime.bigint() - started);
     return result.changes === 1;
@@ -236,10 +271,11 @@ export class LincoDb {
   holdsLease(taskId: string, fence: number, workerId: string): boolean {
     const row = this.one<{ n: number }>(
       `SELECT COUNT(*) AS n FROM tasks
-       WHERE id = ? AND fence = ? AND worker_id = ? AND status = 'running'`,
+       WHERE id = ? AND ${LIVE_LEASE}`,
       taskId,
       fence,
       workerId,
+      nowIso(),
     );
     return (row?.n ?? 0) === 1;
   }
@@ -322,8 +358,8 @@ export class LincoDb {
     const params: Sql[] = [firstResponseMs ?? null, id];
     let guard = "";
     if (claim) {
-      guard = " AND fence = ? AND worker_id = ?";
-      params.push(claim.fence, claim.workerId);
+      guard = ` AND fence = ? AND worker_id = ? AND lease_until IS NOT NULL AND lease_until >= ?`;
+      params.push(claim.fence, claim.workerId, nowIso());
     }
     const result = this.db
       .prepare(
@@ -346,8 +382,8 @@ export class LincoDb {
     const params: Sql[] = [status, patch.resultText ?? null, patch.error ?? null, patch.firstResponseMs ?? null, nowIso(), id];
     let guard = "";
     if (claim) {
-      guard = " AND fence = ? AND worker_id = ? AND status = 'running'";
-      params.push(claim.fence, claim.workerId);
+      guard = ` AND fence = ? AND worker_id = ? AND status = 'running' AND lease_until IS NOT NULL AND lease_until >= ?`;
+      params.push(claim.fence, claim.workerId, nowIso());
     }
     const result = this.db
       .prepare(
@@ -367,8 +403,8 @@ export class LincoDb {
     const params: Sql[] = [JSON.stringify({ waitFor: childIds } satisfies TaskCheckpoint), firstResponseMs ?? null, id];
     let guard = "";
     if (claim) {
-      guard = " AND fence = ? AND worker_id = ?";
-      params.push(claim.fence, claim.workerId);
+      guard = ` AND fence = ? AND worker_id = ? AND lease_until IS NOT NULL AND lease_until >= ?`;
+      params.push(claim.fence, claim.workerId, nowIso());
     }
     const result = this.db
       .prepare(
@@ -418,8 +454,8 @@ export class LincoDb {
     const params: Sql[] = [error, keep, id];
     let guard = "";
     if (claim) {
-      guard = " AND fence = ? AND worker_id = ? AND status = 'running'";
-      params.push(claim.fence, claim.workerId);
+      guard = ` AND fence = ? AND worker_id = ? AND status = 'running' AND lease_until IS NOT NULL AND lease_until >= ?`;
+      params.push(claim.fence, claim.workerId, nowIso());
     }
     const result = this.db
       .prepare(
@@ -443,12 +479,76 @@ export class LincoDb {
     );
   }
 
-  setPlan(taskId: string, plan: PlanStep[]): void {
-    this.run("UPDATE tasks SET plan_json = ? WHERE id = ?", JSON.stringify(plan), taskId);
+  setPlan(taskId: string, plan: PlanStep[], claim?: TaskClaim): boolean {
+    return this.writeOwned(taskId, "plan_json", JSON.stringify(plan), claim);
   }
 
-  setGoal(taskId: string, goal: GoalPlan): void {
-    this.run("UPDATE tasks SET goal_json = ? WHERE id = ?", JSON.stringify(goal), taskId);
+  setGoal(taskId: string, goal: GoalPlan, claim?: TaskClaim): boolean {
+    return this.writeOwned(taskId, "goal_json", JSON.stringify(goal), claim);
+  }
+
+  /**
+   * Insert every child and the parent goal in one transaction.
+   * A failed lease check writes nothing.
+   */
+  dispatchOwned(
+    claim: TaskClaim,
+    input: {
+      userId: string;
+      skills: SkillCatalog;
+      systemPrompt: string;
+      prompts: string[];
+      goalFor?: (tasks: Task[]) => GoalPlan;
+    },
+  ): { tasks: Task[] } | { error: string } {
+    if (input.prompts.length === 0) return { tasks: [] };
+    for (const prompt of input.prompts) {
+      if (prompt.length > 8_000) return { error: "prompt exceeds 8000 characters" };
+    }
+    try {
+      return this.transaction(() => {
+        if (!this.holdsLease(claim.taskId, claim.fence, claim.workerId)) {
+          return { error: "worker lease is no longer held" };
+        }
+        if (this.countChildren(claim.taskId) + input.prompts.length > 8) {
+          return { error: "child task limit reached" };
+        }
+        const tasks: Task[] = [];
+        for (const prompt of input.prompts) {
+          const session = this.createSession(input.userId, input.skills, input.systemPrompt);
+          tasks.push(
+            this.enqueueTask({
+              sessionId: session.id,
+              userId: input.userId,
+              prompt,
+              kind: "child",
+              parentId: claim.taskId,
+              maxAttempts: 1,
+            }),
+          );
+        }
+        if (input.goalFor) {
+          const saved = this.setGoal(claim.taskId, input.goalFor(tasks), claim);
+          if (!saved) throw new Error("lease lost during child dispatch");
+        }
+        return { tasks };
+      });
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      if (message === "lease lost during child dispatch") return { error: "worker lease is no longer held" };
+      throw caught;
+    }
+  }
+
+  private writeOwned(taskId: string, column: "plan_json" | "goal_json", value: string, claim?: TaskClaim): boolean {
+    if (!claim) {
+      this.run(`UPDATE tasks SET ${column} = ? WHERE id = ?`, value, taskId);
+      return true;
+    }
+    const result = this.db
+      .prepare(`UPDATE tasks SET ${column} = ? WHERE id = ? AND ${LIVE_LEASE}`)
+      .run(value, taskId, claim.fence, claim.workerId, nowIso());
+    return result.changes === 1;
   }
 
   createApproval(input: {
@@ -458,7 +558,11 @@ export class LincoDb {
     argsHash: string;
     risk: string;
     reason: string;
+    claim?: TaskClaim;
   }): Approval {
+    if (input.claim && !this.holdsLease(input.claim.taskId, input.claim.fence, input.claim.workerId)) {
+      throw new Error("worker lease is no longer held");
+    }
     const existing = this.one<ApprovalRow>(
       "SELECT * FROM approvals WHERE task_id = ? AND args_hash = ? AND status = 'pending' LIMIT 1",
       input.taskId,
@@ -670,6 +774,11 @@ export class LincoDb {
     ).map(mapNotification);
   }
 
+  getNotification(id: string): Notification | undefined {
+    const row = this.one<NotificationRow>("SELECT * FROM notifications WHERE id = ?", id);
+    return row ? mapNotification(row) : undefined;
+  }
+
   markNotificationRead(id: string): void {
     this.run("UPDATE notifications SET read_at = ? WHERE id = ? AND read_at IS NULL", nowIso(), id);
   }
@@ -681,7 +790,8 @@ export class LincoDb {
     startedAt: string;
     endedAt?: string;
     data: unknown;
-  }): TraceEvent {
+    claim?: TaskClaim;
+  }): TraceEvent | undefined {
     const event: TraceEvent = {
       id: createId("trace"),
       taskId: input.taskId,
@@ -691,25 +801,50 @@ export class LincoDb {
       endedAt: input.endedAt ?? null,
       data: input.data,
     };
-    this.run(
-      `INSERT INTO traces (id, task_id, kind, name, started_at, ended_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      event.id,
-      event.taskId,
-      event.kind,
-      event.name,
-      event.startedAt,
-      event.endedAt,
-      JSON.stringify(event.data),
-    );
-    return event;
+    if (input.claim && input.claim.taskId !== input.taskId) return undefined;
+    if (!input.claim) {
+      this.run(
+        `INSERT INTO traces (id, task_id, kind, name, started_at, ended_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        event.id,
+        event.taskId,
+        event.kind,
+        event.name,
+        event.startedAt,
+        event.endedAt,
+        JSON.stringify(event.data),
+      );
+      return event;
+    }
+    const result = this.db
+      .prepare(
+        `INSERT INTO traces (id, task_id, kind, name, started_at, ended_at, data_json)
+         SELECT ?, ?, ?, ?, ?, ?, ?
+         WHERE EXISTS (SELECT 1 FROM tasks WHERE id = ? AND ${LIVE_LEASE})`,
+      )
+      .run(
+        event.id,
+        event.taskId,
+        event.kind,
+        event.name,
+        event.startedAt,
+        event.endedAt,
+        JSON.stringify(event.data),
+        input.claim.taskId,
+        input.claim.fence,
+        input.claim.workerId,
+        nowIso(),
+      );
+    return result.changes === 1 ? event : undefined;
   }
 
   listTraces(taskId: string): TraceEvent[] {
     return this.many<TraceRow>("SELECT * FROM traces WHERE task_id = ? ORDER BY started_at ASC", taskId).map(mapTrace);
   }
 
-  addUsage(input: Omit<UsageEvent, "id" | "createdAt">): UsageEvent {
-    const event: UsageEvent = { id: createId("usage"), createdAt: nowIso(), ...input };
+  addUsage(input: Omit<UsageEvent, "id" | "createdAt"> & { claim?: TaskClaim }): UsageEvent | undefined {
+    const { claim, ...rest } = input;
+    if (claim && !this.holdsLease(claim.taskId, claim.fence, claim.workerId)) return undefined;
+    const event: UsageEvent = { id: createId("usage"), createdAt: nowIso(), ...rest };
     this.run(
       `INSERT INTO usage_events (
         id, task_id, turn_index, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd, created_at
@@ -862,6 +997,12 @@ export class LincoDb {
       CREATE INDEX IF NOT EXISTS idx_tasks_session ON tasks(session_id);
       CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
       CREATE INDEX IF NOT EXISTS idx_automations_next ON automations(enabled, next_run_at);
+      CREATE TABLE IF NOT EXISTS credentials (
+        token_hash TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        user_id TEXT,
+        created_at TEXT NOT NULL
+      );
     `);
     this.addColumn("tasks", "goal_json", "TEXT");
     this.addColumn("tasks", "fence", "INTEGER NOT NULL DEFAULT 0");

@@ -24,7 +24,12 @@ import type { ToolHost } from "./host.js";
 
 /** Appended after the v1 tool list. Order is part of the v2 cache prefix. */
 export function browserTools(host: ToolHost): AgentTool[] {
-  const target = (): BrowserTarget => ({ workspaceRoot: host.workspaceRoot, taskId: host.taskId, signal: host.signal });
+  const target = (): BrowserTarget => ({
+    workspaceRoot: host.workspaceRoot,
+    taskId: host.taskId,
+    signal: host.signal,
+    allowLoopback: host.allowLoopback,
+  });
   const run = runner(host);
 
   return [
@@ -162,7 +167,12 @@ export function browserTools(host: ToolHost): AgentTool[] {
 
 /** v3 only. Jev chooses the action; browser_select repairs a native dropdown after an escalation. */
 export function jevTools(host: ToolHost): AgentTool[] {
-  const target = (): BrowserTarget => ({ workspaceRoot: host.workspaceRoot, taskId: host.taskId, signal: host.signal });
+  const target = (): BrowserTarget => ({
+    workspaceRoot: host.workspaceRoot,
+    taskId: host.taskId,
+    signal: host.signal,
+    allowLoopback: host.allowLoopback,
+  });
   const run = runner(host);
   return [
     defineTool<{ ref?: string; snapshotId?: number; option: string }>({
@@ -227,6 +237,7 @@ function runner(host: ToolHost) {
         startedAt,
         endedAt: new Date().toISOString(),
         data: result.details ?? {},
+        ...(host.claim ? { claim: host.claim } : {}),
       });
       return text(result.text, result.details);
     } catch (caught) {
@@ -238,6 +249,7 @@ function runner(host: ToolHost) {
         startedAt,
         endedAt: new Date().toISOString(),
         data: { error: message },
+        ...(host.claim ? { claim: host.claim } : {}),
       });
       if (host.signal.aborted) await closeTaskBrowser(host.taskId);
       return error(message);

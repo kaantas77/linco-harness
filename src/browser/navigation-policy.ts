@@ -35,9 +35,15 @@ export class NavigationBlocked extends Error {
   }
 }
 
+export interface NavOptions {
+  /** Local test servers. Off unless the process opts in. */
+  allowLoopback?: boolean;
+  lookup?: (host: string) => Promise<Array<{ address: string }>>;
+}
+
 /** Same host rules as navigation, without a DNS lookup. Hostnames that are not
  * IP addresses stay allowed here; the route handler already resolved them. */
-export function snapshotHostAllowed(raw: string): boolean {
+export function snapshotHostAllowed(raw: string, options: NavOptions = {}): boolean {
   let url: URL;
   try {
     url = new URL(raw);
@@ -49,14 +55,24 @@ export function snapshotHostAllowed(raw: string): boolean {
   const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (!host || BLOCKED_NAMES.has(host) || host.endsWith(".local") || host.endsWith(".internal")) return false;
   if (/^\d+$/.test(host)) return false;
-  if (host === "localhost") return true;
+  if (host === "localhost") return options.allowLoopback === true;
   const family = isIP(host);
-  if (family === 4 || family === 6) return allowedAddress(host);
+  if (family === 4 || family === 6) return allowedAddress(host, options.allowLoopback === true);
   return true;
 }
 
-/** Allow public http(s) and loopback. Private, link-local, and metadata targets are refused. */
-export async function assertNavigable(raw: string): Promise<URL> {
+export interface PublicDestination {
+  url: URL;
+  addresses: string[];
+}
+
+/** Allow public http(s). Loopback is allowed only when the caller opts in.
+ * Private, link-local, and metadata targets are refused. */
+export async function assertNavigable(raw: string, options: NavOptions = {}): Promise<URL> {
+  return (await inspectDestination(raw, options)).url;
+}
+
+export async function inspectDestination(raw: string, options: NavOptions = {}): Promise<PublicDestination> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -70,28 +86,32 @@ export async function assertNavigable(raw: string): Promise<URL> {
     throw new NavigationBlocked("that host is blocked");
   }
   if (/^\d+$/.test(host)) throw new NavigationBlocked("numeric hostnames are blocked");
-  if (host === "localhost") return url;
+  const allowLoopback = options.allowLoopback === true;
+  if (host === "localhost" && !allowLoopback) throw new NavigationBlocked("that host is blocked");
   const family = isIP(host);
   if (family === 4 || family === 6) {
-    if (!allowedAddress(host)) throw new NavigationBlocked("that address is blocked");
-    return url;
+    if (!allowedAddress(host, allowLoopback)) throw new NavigationBlocked("that address is blocked");
+    return { url, addresses: [normalize(host).address] };
   }
   let records: { address: string }[];
   try {
-    records = await lookup(host, { all: true, verbatim: true });
-  } catch {
+    records = options.lookup ? await options.lookup(host) : await lookup(host, { all: true, verbatim: true });
+  } catch (caught) {
+    if (caught instanceof NavigationBlocked) throw caught;
     throw new NavigationBlocked("that host did not resolve");
   }
   if (records.length === 0) throw new NavigationBlocked("that host did not resolve");
+  const addresses: string[] = [];
   for (const record of records) {
-    if (!allowedAddress(record.address)) throw new NavigationBlocked("that host resolves to a blocked address");
+    if (!allowedAddress(record.address, allowLoopback)) throw new NavigationBlocked("that host resolves to a blocked address");
+    addresses.push(normalize(record.address).address);
   }
-  return url;
+  return { url, addresses };
 }
 
-function allowedAddress(address: string): boolean {
+function allowedAddress(address: string, allowLoopback: boolean): boolean {
   const normalized = normalize(address);
-  if (isLoopback(normalized.address, normalized.family)) return true;
+  if (isLoopback(normalized.address, normalized.family)) return allowLoopback;
   return !blocked.check(normalized.address, normalized.family);
 }
 

@@ -1,45 +1,45 @@
-# Üretim öncesi güvenlik engelleri
+# Güvenlik sınırları
 
-Bu dosya faz 1 kodunun üretimde açılmasını engelleyen dört maddeyi ayrı ayrı tutar. Dördü de giderilmeden Linco Harness birden fazla kullanıcıya veya herkese açık bir ağa verilmez. Bunlar ölçüm raporundaki performans iddiası değildir.
+Bu dosya faz 8'den sonra hâlâ açık olan kapıları tutar. Kapatılanlar da burada, iddia edilenden ayrı durur. Bunlar performans iddiası değildir.
 
-## HTTP kimlik doğrulaması yok
+## Kimlik
 
-`src/server/http.ts` gelen istekte kullanıcı, oturum veya token kontrol etmez. `127.0.0.1:8787` varsayılanıdır. Bu adres başka bir arayüze, tünele veya `LINCO_HOST=0.0.0.0` ile dış ağa açılırsa, isteği gören herkes kullanıcı yaratır, mesaj gönderir, onaylar, belleği okur ve webhook çalıştırır.
+Varsayılan `LINCO_AUTH` değerinin yokluğu token modudur. `Authorization: Bearer` olmadan `/health` ve webhook dışındaki istekler 401 döner. Kullanıcı yaratmak bootstrap token ister. `LINCO_BOOTSTRAP_TOKEN` yoksa `linco serve` token'ı bir kez stderr'e yazar ve düz metin olarak kaydetmez. Kullanıcı token'ı yaratma cevabında bir kez döner. Veritabanında yalnız SHA-256 özeti durur.
 
-Üretim engeli: sunucu, çağıranı doğrulamadan görev kabul ediyor.
+Kullanıcı, başkasının oturumunu, görevini, belleğini, otomasyonunu ve bildirimini göremez. Başka kullanıcıya ait görev kimliği iptal, onay ve inspection okumasında 404 döner. Bootstrap token görev okuyamaz.
+
+`LINCO_AUTH=dev` eski açık localhost kullanımını bırakır. Bu mod `127.0.0.1`, `localhost` veya `::1` dışında dinlemeyi reddeder. Üretim modu değildir.
+
+Webhook yolu kendi gizli token'ını taşır. Bu bir kullanıcı oturumu değildir. Token'ı bilen, o otomasyonun kullanıcısı adına görev kuyruğa alır.
+
+Kalan kapı: TLS yoktur. Token çalınırsa o kullanıcının yetkisi ele geçer. İlk bootstrap satırı processes arasında paylaşılmaz. `linco worker` kimlik satırını yönetmez.
 
 ## SSRF
 
-`web_fetch` (`src/tools/http-browser.ts`) yalnızca `http` ve `https` kabul eder. Engellenen hostlar şunlardır: `169.254.169.254`, `metadata.google.internal`, `169.254.170.2`.
+`web_fetch` ve Playwright aynı hedef kuralını kullanır. Özel ağlar, link-local, metadata adları ve bu adreslere çözülen hostlar reddedilir. Sayısal host adları reddedilir. Her yönlendirmede hedef yeniden kontrol edilir. Bağlantı, kontrol edilen adrese sabitlenir. Böylece ikinci DNS cevabı özel adrese kayamaz.
 
-Şunlar engelli değildir:
+Loopback varsayılan olarak kapalıdır. `LINCO_ALLOW_LOOPBACK=1` yalnız yerel test sayfaları içindir. Bu bayrak özel ağı açmaz.
 
-- `127.0.0.1` ve diğer özel adresler
-- yönlendirme (`redirect: "follow"`). İlk host engelli olsa bile sonraki adres kontrol edilmez
-- DNS yeniden bağlama. Host adı çözülürken kontrol edilen dize ile bağlanılan adres ayrı tutulmaz
+Kalan kapı: DNS kaydı kontrol ile bağlantı arasında değişirse sabitlenmiş adres kullanılır. Hedef sunucunun kendisi, izinli bir adresin arkasından iç ağa bağlanırsa bu katman onu görmez. Jev, `TYPESAFE_API_KEY` varken sayfa başlığını, adresini ve görevin verdiği alan değerlerini TypeSafe'e gönderir. Şifre adayı snapshot'a alınmaz.
 
-Üretim engeli: model, çalışma alanındaki bir araçla iç ağa ve bulut metadata adreslerinin bu listedeki üçü dışındaki hallerine istek atabilir.
+## Kabuk ve code mode
 
-Tarayıcı navigasyonu (`src/browser/navigation-policy.ts`) ayrı bir kontrol kullanır. Loopback açıktır. `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, metadata adları ve sayısal hostlar reddedilir. Her istek Playwright route'undan da geçer. Jev'in snapshot izin listesi aynı host kurallarını DNS sorgusu olmadan uygular. Hostname'in özel adrese çözülmesi navigasyonda reddedilir. Bu, yönlendirme sonrası adres ve DNS yeniden bağlamayı kapatan bir üretim sınırı değildir. `TYPESAFE_API_KEY` varken `jev_run`, sayfa başlığını, adresini, öğe adlarını ve görevin verdiği alan değerlerini TypeSafe'e gönderir. Alanın içindeki metin snapshot'ta yoktur. Şifre adayı olmaz. Tarayıcı bu haliyle yerel geliştirme içindir.
+`shell_exec` macOS'ta `sandbox-exec` ile çalışır. Linux'ta `/usr/bin/bwrap` varsa bubblewrap kullanır. İkisi de yoksa komut çalışmaz. `LINCO_SANDBOX=off` bu reddi kaldırır ve izolasyon yoktur.
 
-## Kabuk izolasyonu yok
+Seatbelt, kullanıcı evini, `/private` altını ve `/etc` içeriğini okumayı reddeder. Yazma yalnız görev çalışma alanındadır. Ağ reddedilir. Çalışma zamanının kendi dizini, `/usr`, `/bin`, `/System`, `/Library`, `/opt` ve `/dev` okunabilir. Süreç başlayabilsin diye bu araç ağaçları açıktır. CPU saniyesi, süreç sayısı, açık dosya ve dosya boyutu `ulimit` ile sınırlanır. Duvar saati araç zaman aşımıdır.
 
-`shell_exec` `LocalComputerProvider` üzerinden `spawn(..., { shell: true })` çalıştırır. Bu, Unix'te `sh -c` demektir. Sınır şunlardır: çalışma dizini, `HOME` ve `TMPDIR` çalışma alanı, ortam listesinde API anahtarının olmaması, `src/security/policy.ts` içindeki düzenli ifadeler.
+`code_run` sandbox zorunluyken ayrı bir Node sürecindedir. Araç çağrıları ebeveyne döner. Süreç aynı dosya ve ağ sınırındadır. `vm` tek başına güvenlik sınırı sayılmaz.
 
-Bu bir işletim sistemi sandbox'ı değildir. İfade filtresini geçen bir komut, süreç kullanıcısının görebildiği dosyaları ve ağı kullanır. `code_run` da Node `vm` içindedir ve güvenlik sınırı değildir.
+Kalan kapı: Darwin `ulimit -v` güvenilir bir adres alanı sınırı vermez. Bellek tavanı iddia edilmez. `/opt` ve sistem dizinleri okunabilir. İki kullanıcının çocukları aynı çalışma alanına yazarsa dosya çakışabilir. Çocuklar kullanıcının çalışma alanını paylaşır. Ayrı kullanıcıların dizinleri sandbox tarafından ayrılır. Yazılmış dosya, kira düşünce geri alınmaz.
 
-Üretim engeli: kabuk ve code mode, paylaşılan bir makinede kullanıcıları birbirinden ayırmaz.
+## Kira ve çit
 
-## Çoklu süreç
+`holdsLease` worker kimliğini, fence değerini ve kira süresini birlikte ister. Süre dolmuş kira yenilenmez. `setPlan`, `setGoal`, transkript, terminal durum, iz ve kullanım yazısı bu şarta bağlıdır. Çocuk kuyruğu ve hedef güncellemesi tek transaction'dadır. Yarım çocuk bırakılmaz.
 
-Aynı makinedeki iki Node süreci tek SQLite dosyasını paylaşabilir. `claimTask` aday seçimini ve `queued` satırın `running` oluşunu tek `BEGIN IMMEDIATE` işleminde yapar. Aynı oturumun ikinci görevi, ilki `running` iken alınmaz. Sahiplenme worker kimliği, artan `fence`, kira bitişi ve son heartbeat yazar. Canlı worker kirayı yeniler.
+İki süreç testi, süresi dolmuş worker'ın hedefi, planı, çocuğu ve transkripti yazamadığını gösterir. Başka süreç aynı fence ile yazamaz.
 
-Kira dolunca tarama kör tekrar yapmaz. Okuma izi olan veya hiç araç izi olmayan görev yeniden kuyruğa girer. Yazma, silme, kabuk, dış istek, tarayıcı ve çocuk doğurma gibi belirsiz izler `needs_inspection` olur. Başlamış ama bitmemiş araç da incelemeye gider. Bu durum ebeveyni sonsuza kadar bekletmez. Yazılmış dosya geri alınmaz. Exactly-once iddiası yoktur.
+Kalan kapı: exactly-once yoktur. Araç, kira kontrolünden sonra ve iz yazılmadan dosyayı değiştirebilir. Tarama o izi görmezse işi yeniden kuyruğa alabilir. Ağ dosya sistemiyle paylaşılan SQLite desteklenmez.
 
-Transkript ve terminal yazımı, satır hâlâ `running` ve `fence` hâlâ o worker'a aitse geçer. Eski worker'ın geç yazısı sıfır satır değiştirir. `resumeChildren` işareti bu kurtarmada silinmez.
+## Ölçüm
 
-`waiting_children` uyanışı koşullu bir güncellemedir. Durum hâlâ `waiting_children` ise ve beklenen her çocuk bitmişse satır bir kez `queued` olur. İkinci çağrı bir şey yapmaz. Başarısız bir devam denemesi aynı transkriptten devam işaretini korur. Bu, çağrı sırasında yazılmış dosyayı geri almaz.
-
-Üretim engeli: bu koruma tek makinedeki yerel dosya içindir. Ağ dosya sistemiyle paylaşılan SQLite desteklenmez. Kira, harici yan etkiyi geri alamaz. HTTP kimlik doğrulaması, SSRF ve kabuk izolasyonu ayrı kapılardır.
-
-İstek sıkıştırması kaydı silmez. Modele giden kopya kısalabilir. SQLite transkripti durur.
+`reports/security.md`. Mod offline. `performanceClaim` none. Seatbelt bu makinede anonim isteği, başka kullanıcının görevini, özel DNS cevabını, metadata yönlendirmesini, `/etc/passwd` okumasını, başka çalışma alanını ve süresi dolmuş kirayı reddetti. Bu bir sıralama değildir.

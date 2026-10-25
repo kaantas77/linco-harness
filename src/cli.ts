@@ -21,7 +21,10 @@ linco bench [--out reports]
 linco bench --live [--out reports] [--data .data-bench]
 linco bench --context [--out reports] [--data .data-bench]
 linco bench --durable [--out reports]
-linco worker [--data .data] [--workers 1]`);
+linco worker [--data .data] [--workers 1]
+Auth defaults to token. LINCO_AUTH=dev keeps the open loopback API.
+LINCO_BOOTSTRAP_TOKEN creates users. LINCO_ALLOW_LOOPBACK=1 opens local URLs.
+LINCO_SANDBOX=off runs shell and code mode without an OS sandbox.`);
   process.exit(0);
 }
 
@@ -31,7 +34,11 @@ if (command === "serve") {
   const server = new HarnessServer(harness);
   harness.start();
   const port = await server.listen();
-  console.log(`linco listening on http://${config.host}:${port} with ${config.workerCount} workers`);
+  console.log(`linco listening on http://${config.host}:${port} with ${config.workerCount} workers (${config.authMode})`);
+  if (config.authMode === "token" && !config.bootstrapToken && harness.bootstrapToken) {
+    console.error("linco bootstrap token (shown once; it is not saved in the clear):");
+    console.error(harness.bootstrapToken);
+  }
   const shutdown = async () => {
     await server.close();
     await harness.stop();
@@ -102,6 +109,7 @@ if (command === "serve") {
   const config = loadConfig({
     dataDir: flagValue(args, "--data"),
     workerCount: flagNumber(args, "--workers") ?? 1,
+    manageCredentials: false,
   });
   const harness = new Harness({ config });
   harness.start();

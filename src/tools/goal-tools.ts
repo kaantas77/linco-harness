@@ -11,7 +11,6 @@ import {
   type GoalDraftStep,
 } from "../agent/goal.js";
 import type { GoalCheck, GoalPlan } from "../types.js";
-import { queueChild } from "./agent-tools.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
 import type { ToolHost } from "./host.js";
@@ -57,7 +56,7 @@ export function goalTools(host: ToolHost): AgentTool[] {
         }
         try {
           const plan = createGoal(params.goal, params.steps, params.replanBudget ?? 2);
-          host.db.setGoal(host.taskId, plan);
+          if (!host.db.setGoal(host.taskId, plan, host.claim)) return error("worker lease is no longer held");
           return text(goalStatusText(plan), { goal: plan.goal, steps: plan.steps.length });
         } catch (caught) {
           return error(caught instanceof Error ? caught.message : String(caught));
@@ -86,20 +85,32 @@ export function goalTools(host: ToolHost): AgentTool[] {
         const plan = currentGoal(host);
         if (!plan) return error("no goal is stored");
         const ready = readyToDispatch(plan);
-        const bindings: Array<{ stepId: string; taskId: string }> = [];
-        for (const step of ready) {
-          const queued = queueChild(host, childPromptFor(step));
-          if ("error" in queued) {
-            if (bindings.length > 0) host.db.setGoal(host.taskId, markDispatched(plan, bindings));
-            return error(queued.error);
-          }
-          bindings.push({ stepId: step.id, taskId: queued.task.id });
-          const live = host.db.getTask(queued.task.id);
-          const open = live?.status === "queued" || live?.status === "running";
-          if (open) host.parkChild?.(queued.task.id);
+        if (ready.length === 0) {
+          if (!host.db.setGoal(host.taskId, plan, host.claim)) return error("worker lease is no longer held");
+          return text(JSON.stringify({ spawned: [], held: plan.steps.filter((step) => step.status === "pending").map((step) => step.id) }), {
+            spawned: 0,
+            held: plan.steps.filter((step) => step.status === "pending").map((step) => step.id),
+          });
         }
+        if (host.parentTaskId) return error("a child task cannot spawn another child");
+        const dispatched = host.db.dispatchOwned(
+          host.claim,
+          {
+            userId: host.userId,
+            skills: host.skills,
+            systemPrompt: host.systemPrompt,
+            prompts: ready.map((step) => childPromptFor(step)),
+            goalFor: (tasks) =>
+              markDispatched(
+                plan,
+                tasks.map((task, index) => ({ stepId: ready[index]?.id ?? task.id, taskId: task.id })),
+              ),
+          },
+        );
+        if ("error" in dispatched) return error(dispatched.error);
+        const bindings = dispatched.tasks.map((task, index) => ({ stepId: ready[index]?.id ?? task.id, taskId: task.id }));
+        for (const task of dispatched.tasks) host.parkChild?.(task.id);
         const saved = markDispatched(plan, bindings);
-        host.db.setGoal(host.taskId, saved);
         const held = saved.steps.filter((step) => step.status === "pending").map((step) => step.id);
         return text(JSON.stringify({ spawned: bindings, held }), { spawned: bindings.length, held });
       },
@@ -119,7 +130,7 @@ export function goalTools(host: ToolHost): AgentTool[] {
           taskId: host.taskId,
           db: host.db,
         });
-        host.db.setGoal(host.taskId, saved);
+        if (!host.db.setGoal(host.taskId, saved, host.claim)) return error("worker lease is no longer held");
         const step = saved.steps.find((item) => item.id === params.stepId);
         return text(goalStatusText(saved), { stepId: params.stepId, status: step?.status ?? "missing" });
       },
@@ -134,7 +145,7 @@ export function goalTools(host: ToolHost): AgentTool[] {
         const plan = currentGoal(host);
         if (!plan) return error("no goal is stored");
         const result = replan(plan, params.stepId, params.steps);
-        host.db.setGoal(host.taskId, result.plan);
+        if (!host.db.setGoal(host.taskId, result.plan, host.claim)) return error("worker lease is no longer held");
         if (result.error) return error(result.error);
         return text(goalStatusText(result.plan), { replans: result.plan.replans });
       },

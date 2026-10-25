@@ -25,14 +25,16 @@ const usage = zeroUsage({
 
 describe("browser navigation policy", () => {
   it("allows loopback and refuses private and metadata targets", async () => {
-    await expect(assertNavigable("http://127.0.0.1:9/form")).resolves.toBeTruthy();
-    await expect(assertNavigable("http://localhost/")).resolves.toBeTruthy();
-    await expect(assertNavigable("http://10.1.1.1/")).rejects.toThrow(/blocked/);
+    await expect(assertNavigable("http://127.0.0.1:9/form")).rejects.toThrow(/blocked/);
+    await expect(assertNavigable("http://127.0.0.1:9/form", { allowLoopback: true })).resolves.toBeTruthy();
+    await expect(assertNavigable("http://localhost/", { allowLoopback: true })).resolves.toBeTruthy();
+    await expect(assertNavigable("http://10.1.1.1/", { allowLoopback: true })).rejects.toThrow(/blocked/);
     await expect(assertNavigable("http://169.254.169.254/latest")).rejects.toThrow(/blocked/);
     await expect(assertNavigable("http://metadata.google.internal/")).rejects.toThrow(/blocked/);
     await expect(assertNavigable("file:///etc/passwd")).rejects.toThrow(/http/);
-    expect(snapshotHostAllowed("http://127.0.0.1:9/form")).toBe(true);
-    expect(snapshotHostAllowed("http://10.1.1.1/")).toBe(false);
+    expect(snapshotHostAllowed("http://127.0.0.1:9/form")).toBe(false);
+    expect(snapshotHostAllowed("http://127.0.0.1:9/form", { allowLoopback: true })).toBe(true);
+    expect(snapshotHostAllowed("http://10.1.1.1/", { allowLoopback: true })).toBe(false);
   });
 });
 
@@ -109,7 +111,7 @@ describe("playwright browser", () => {
         <form action="/done" method="get"><label for="email">Email</label><input id="email" name="email" /><button type="submit">Save</button></form>`);
     });
     const signal = new AbortController().signal;
-    const first = { workspaceRoot: workspace, taskId: "task-a", signal };
+    const first = { workspaceRoot: workspace, taskId: "task-a", signal, allowLoopback: true };
     try {
       const opened = await openBrowser(first, site.url);
       expect(parseBrowserSnapshot(opened.text)?.elements.some((element) => element.role === "textbox" && element.name === "Email")).toBe(true);
@@ -130,7 +132,7 @@ describe("playwright browser", () => {
       await tabsBrowser(first, { action: "select", index: 0 });
       const listed = await tabsBrowser(first, { action: "list" });
       expect(listed.split("\n").length).toBe(2);
-      await expect(openBrowser({ workspaceRoot: workspace, taskId: "task-b", signal }, site.url)).rejects.toThrow(/in use/);
+      await expect(openBrowser({ workspaceRoot: workspace, taskId: "task-b", signal, allowLoopback: true }, site.url)).rejects.toThrow(/in use/);
     } finally {
       await closeTaskBrowser("task-a");
       await closeTaskBrowser("task-b");
@@ -152,7 +154,7 @@ describe("playwright browser", () => {
       response.end(`<!doctype html><title>Contact</title><h1>Contact</h1>
         <form action="/done" method="get"><label for="email">Email</label><input id="email" name="email" /><button type="submit">Save</button></form>`);
     });
-    const target = { workspaceRoot: workspace, taskId: "task-jev", signal: new AbortController().signal };
+    const target = { workspaceRoot: workspace, taskId: "task-jev", signal: new AbortController().signal, allowLoopback: true };
     try {
       await openBrowser(target, site.url);
       const result = await runDelegatedJev({
@@ -197,13 +199,13 @@ describe("playwright browser", () => {
       response.end("<title>Ready</title><h1>Ready</h1>");
     });
     const abort = new AbortController();
-    const pending = openBrowser({ workspaceRoot: workspace, taskId: "slow", signal: abort.signal }, `${site.url}slow`);
+    const pending = openBrowser({ workspaceRoot: workspace, taskId: "slow", signal: abort.signal, allowLoopback: true }, `${site.url}slow`);
     await new Promise((resolve) => setTimeout(resolve, 150));
     abort.abort();
     await expect(pending).rejects.toThrow();
     await closeTaskBrowser("slow");
     const next = new AbortController();
-    await openBrowser({ workspaceRoot: workspace, taskId: "next", signal: next.signal }, site.url);
+    await openBrowser({ workspaceRoot: workspace, taskId: "next", signal: next.signal, allowLoopback: true }, site.url);
     await closeTaskBrowser("next");
     next.abort();
     await site.close();

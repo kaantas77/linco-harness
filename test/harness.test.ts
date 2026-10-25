@@ -123,7 +123,14 @@ describe("harness", () => {
     const port = address && typeof address !== "string" ? address.port : 0;
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "linco-web-"));
     const harness = new Harness({
-      config: loadConfig({ dataDir, skillsDir, workerCount: 1, schedulerIntervalMs: 60_000, port: 0 }),
+      config: loadConfig({
+        dataDir,
+        skillsDir,
+        workerCount: 1,
+        schedulerIntervalMs: 60_000,
+        port: 0,
+        allowLoopback: true,
+      }),
       model: SCRIPT_MODEL,
       streamFn: scriptedStream([
         { calls: [{ name: "web_fetch", arguments: { url: `http://127.0.0.1:${port}/` } }] },

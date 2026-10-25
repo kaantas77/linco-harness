@@ -10,6 +10,8 @@ import { createDeepSeek } from "../llm/deepseek.js";
 import { SCRIPT_MODEL } from "../llm/scripted.js";
 import { planContext } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
+import { loopbackHost } from "../config.js";
+import { hashToken, newToken } from "../security/tokens.js";
 import { approvalHash, assess } from "../security/policy.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
@@ -34,8 +36,9 @@ export class Harness {
   readonly config: LincoConfig;
   readonly db: LincoDb;
   readonly skills: SkillCatalog;
-  private readonly computer = new LocalComputerProvider();
-  private readonly browser = new HttpBrowserProvider();
+  readonly bootstrapToken: string | null;
+  private readonly computer: LocalComputerProvider;
+  private readonly browser: HttpBrowserProvider;
   private streamFn: StreamFn | undefined;
   private model: Model<Api> | undefined;
   private running = false;
@@ -47,10 +50,21 @@ export class Harness {
 
   constructor(options: HarnessOptions) {
     this.config = options.config;
+    if (this.config.authMode === "dev" && !loopbackHost(this.config.host)) {
+      throw new Error("LINCO_AUTH=dev only binds to loopback");
+    }
     this.db = new LincoDb(path.join(options.config.dataDir, "linco.sqlite"));
     this.skills = new SkillCatalog(options.config.skillsDir);
+    this.computer = new LocalComputerProvider(this.config.sandbox);
+    this.browser = new HttpBrowserProvider({ allowLoopback: this.config.allowLoopback });
     this.streamFn = options.streamFn;
     this.model = options.model;
+    if (this.config.authMode === "token" && this.config.manageCredentials) {
+      this.bootstrapToken = this.config.bootstrapToken ?? newToken();
+      this.db.replaceBootstrap(hashToken(this.bootstrapToken));
+    } else {
+      this.bootstrapToken = this.config.bootstrapToken ?? null;
+    }
   }
 
   start(): void {
@@ -309,6 +323,7 @@ export class Harness {
           startedAt: new Date().toISOString(),
           endedAt: new Date().toISOString(),
           data: { childIds: task.checkpoint?.waitFor ?? [] },
+          claim,
         });
       }
       const llm = await this.llm();
@@ -324,6 +339,9 @@ export class Harness {
         browser: this.browser,
         computer: this.computer,
         signal: abort.signal,
+        claim,
+        allowLoopback: this.config.allowLoopback,
+        sandbox: this.config.sandbox,
         markApproval: () => {
           run.waitingApproval = true;
         },
@@ -368,6 +386,7 @@ export class Harness {
               name: "compact",
               startedAt: at,
               endedAt: at,
+              claim,
               data: {
                 beforeChars: planned.beforeChars,
                 afterChars: planned.afterChars,
@@ -395,6 +414,7 @@ export class Harness {
             cacheReadTokens: usage.cacheRead,
             cacheWriteTokens: usage.cacheWrite,
             costUsd: usage.cost.total,
+            claim,
           });
           run.turn += 1;
         }
@@ -406,6 +426,7 @@ export class Harness {
             name: event.toolName,
             startedAt: at,
             data: { phase: "start", toolCallId: event.toolCallId },
+            claim,
           });
         }
         if (event.type === "tool_execution_end") {
@@ -417,6 +438,7 @@ export class Harness {
             name: event.toolName,
             startedAt: new Date(ended - (event.durationMs ?? 0)).toISOString(),
             endedAt: new Date(ended).toISOString(),
+            claim,
             data: {
               phase: "end",
               toolCallId: event.toolCallId,
@@ -459,6 +481,7 @@ export class Harness {
             startedAt: new Date().toISOString(),
             endedAt: new Date().toISOString(),
             data: { childIds: [...waiting] },
+            claim,
           });
           this.db.wakeParent(task.id);
           return;
@@ -523,6 +546,7 @@ export class Harness {
       argsHash: hash,
       risk: assessment.risk,
       reason: assessment.reason,
+      claim,
     });
     host.markApproval();
     return { block: true, terminate: true, reason: assessment.reason };

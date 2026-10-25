@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Harness } from "../agent/runtime.js";
-import type { LincoConfig } from "../config.js";
+import { loadConfig, type LincoConfig } from "../config.js";
 import { zeroUsage, type ScriptStep, scriptedStream, SCRIPT_MODEL } from "../llm/scripted.js";
 import type { Task } from "../types.js";
 
@@ -96,7 +96,7 @@ export async function runOfflineBench(config: Pick<LincoConfig, "dataDir" | "ski
   const rows: BenchRow[] = [];
   for (const scenario of offlineScenarios) {
     const harness = new Harness({
-      config: {
+      config: loadConfig({
         dataDir: path.join(config.dataDir, scenario.id),
         skillsDir: config.skillsDir,
         host: "127.0.0.1",
@@ -109,7 +109,11 @@ export async function runOfflineBench(config: Pick<LincoConfig, "dataDir" | "ski
         schedulerIntervalMs: 60_000,
         leaseMs: 15_000,
         heartbeatMs: 2_000,
-      },
+        authMode: "dev",
+        manageCredentials: false,
+        allowLoopback: true,
+        sandbox: "require",
+      }),
       model: SCRIPT_MODEL,
       streamFn: scriptedStream(scenario.steps),
     });

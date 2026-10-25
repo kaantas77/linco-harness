@@ -213,7 +213,7 @@ export async function runDelegatedJev(input: {
       acceptAlreadyDone: true,
       expectedUrl: () => false,
       expectedSnapshot: (snapshot) => verifies(snapshot, contract.expected),
-      allowedSnapshotUrl: (url) => !repeated && snapshotHostAllowed(url),
+      allowedSnapshotUrl: (url) => !repeated && snapshotHostAllowed(url, { allowLoopback: input.target.allowLoopback === true }),
       deadlineAt: started + Math.min(30_000, 90_000 - current.elapsedMs),
       signal: AbortSignal.any([current.abort.signal, input.target.signal]),
       fetchImpl: input.fetchImpl,

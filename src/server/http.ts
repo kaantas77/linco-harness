@@ -1,8 +1,12 @@
 import http from "node:http";
 import type { Harness } from "../agent/runtime.js";
 import { projectMessages } from "../agent/transcript.js";
+import { loopbackHost } from "../config.js";
 import { toNemoTrace } from "../observe/nemo.js";
+import { hashToken, newToken } from "../security/tokens.js";
 import type { AutomationKind, MemoryKind } from "../types.js";
+
+type Principal = { kind: "dev" } | { kind: "bootstrap" } | { kind: "user"; userId: string };
 
 export class HarnessServer {
   private readonly server: http.Server;
@@ -25,6 +29,10 @@ export class HarnessServer {
   listen(port = this.harness.config.port, host = this.harness.config.host): Promise<number> {
     return new Promise((resolve, reject) => {
       this.server.once("error", reject);
+      if (this.harness.config.authMode === "dev" && !loopbackHost(host)) {
+        reject(new Error("LINCO_AUTH=dev only binds to loopback"));
+        return;
+      }
       this.server.listen(port, host, () => {
         const address = this.server.address();
         this.boundPort = address && typeof address !== "string" ? address.port : port;
@@ -53,6 +61,21 @@ export class HarnessServer {
       return;
     }
 
+    const webhook = match(path, "/v1/webhooks/:token");
+    if (method === "POST" && webhook) {
+      const payload = await readJson(request);
+      try {
+        send(response, 202, this.harness.acceptWebhook(tokenOf(webhook), payload));
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : "unknown webhook";
+        throw new HttpError(message === "unknown webhook" ? 404 : 500, message);
+      }
+      return;
+    }
+
+    const principal = this.principal(request);
+    if (!principal) throw new HttpError(401, "authentication required");
+
     const sessionMessages = match(path, "/v1/sessions/:id/messages");
     const session = match(path, "/v1/sessions/:id");
     const taskCancel = match(path, "/v1/tasks/:id/cancel");
@@ -64,22 +87,33 @@ export class HarnessServer {
     const automations = match(path, "/v1/users/:id/automations");
     const notifications = match(path, "/v1/users/:id/notifications");
     const notificationRead = match(path, "/v1/notifications/:id/read");
-    const webhook = match(path, "/v1/webhooks/:token");
 
     if (method === "POST" && path === "/v1/users") {
+      if (principal.kind === "user") throw new HttpError(403, "forbidden");
       const body = await readJson(request);
       const name = requiredString(body, "name");
-      send(response, 201, this.harness.createUser(name));
+      const created = this.harness.createUser(name);
+      if (this.harness.config.authMode !== "token") {
+        send(response, 201, created);
+        return;
+      }
+      const token = newToken();
+      this.harness.db.issueUserToken(created.id, hashToken(token));
+      send(response, 201, { ...created, token });
       return;
     }
+    this.requireUser(principal);
     if (method === "POST" && path === "/v1/sessions") {
       const body = await readJson(request);
-      send(response, 201, this.harness.createSession(requiredString(body, "userId")));
+      const userId = requiredString(body, "userId");
+      this.owns(principal, userId);
+      send(response, 201, this.harness.createSession(userId));
       return;
     }
     if (method === "GET" && session && !sessionMessages) {
       const found = this.harness.db.getSession(idOf(session));
       if (!found) throw new HttpError(404, "session not found");
+      this.owns(principal, found.userId);
       send(response, 200, {
         session: found,
         messages: projectMessages(this.harness.db.getTranscript(found.id)),
@@ -88,6 +122,9 @@ export class HarnessServer {
       return;
     }
     if (method === "POST" && sessionMessages) {
+      const found = this.harness.db.getSession(idOf(sessionMessages));
+      if (!found) throw new HttpError(404, "session not found");
+      this.owns(principal, found.userId);
       const body = await readJson(request);
       const waitMs = optionalNumber(body, "waitMs");
       const taskRecord = await this.harness.submit(idOf(sessionMessages), requiredString(body, "text"), {
@@ -98,33 +135,39 @@ export class HarnessServer {
       return;
     }
     if (method === "GET" && task && !taskCancel && !taskApprove && !taskObserve) {
+      const found = this.ownedTask(principal, idOf(task));
       send(response, 200, {
-        task: this.requireTask(idOf(task)),
-        approvals: this.harness.db.listApprovals(idOf(task)),
-        usage: this.harness.db.usageSummary(idOf(task)),
+        task: found,
+        approvals: this.harness.db.listApprovals(found.id),
+        usage: this.harness.db.usageSummary(found.id),
       });
       return;
     }
     if (method === "POST" && taskCancel) {
-      send(response, 200, this.harness.cancel(idOf(taskCancel)));
+      const found = this.ownedTask(principal, idOf(taskCancel));
+      send(response, 200, this.harness.cancel(found.id));
       return;
     }
     if (method === "POST" && taskApprove) {
+      const found = this.ownedTask(principal, idOf(taskApprove));
       const body = await readJson(request);
       const decision = requiredString(body, "decision");
       if (decision !== "approved" && decision !== "denied") throw new HttpError(400, "decision must be approved or denied");
-      send(response, 200, this.harness.approve(idOf(taskApprove), requiredString(body, "approvalId"), decision));
+      send(response, 200, this.harness.approve(found.id, requiredString(body, "approvalId"), decision));
       return;
     }
     if (method === "GET" && taskObserve) {
-      send(response, 200, toNemoTrace(this.harness.db, idOf(taskObserve)));
+      const found = this.ownedTask(principal, idOf(taskObserve));
+      send(response, 200, toNemoTrace(this.harness.db, found.id));
       return;
     }
     if (method === "GET" && memories) {
+      this.owns(principal, idOf(memories));
       send(response, 200, { memories: this.harness.db.listMemories(idOf(memories)) });
       return;
     }
     if (method === "POST" && memories) {
+      this.owns(principal, idOf(memories));
       const body = await readJson(request);
       send(response, 201, this.harness.db.createMemory({
         userId: idOf(memories),
@@ -135,6 +178,7 @@ export class HarnessServer {
       return;
     }
     if (method === "PATCH" && memory) {
+      this.ownedMemory(principal, idOf(memory));
       const body = await readJson(request);
       const kind = optionalString(body, "kind");
       send(response, 200, this.harness.db.updateMemory(idOf(memory), {
@@ -145,6 +189,7 @@ export class HarnessServer {
       return;
     }
     if (method === "DELETE" && memory) {
+      this.ownedMemory(principal, idOf(memory));
       this.harness.db.deleteMemory(idOf(memory));
       send(response, 204, null);
       return;
@@ -154,10 +199,12 @@ export class HarnessServer {
       return;
     }
     if (method === "GET" && automations) {
+      this.owns(principal, idOf(automations));
       send(response, 200, { automations: this.harness.db.listAutomations(idOf(automations)) });
       return;
     }
     if (method === "POST" && automations) {
+      this.owns(principal, idOf(automations));
       const body = await readJson(request);
       const kind = automationKind(requiredString(body, "kind"));
       send(response, 201, this.harness.createAutomation({
@@ -170,27 +217,52 @@ export class HarnessServer {
       }));
       return;
     }
-    if (method === "POST" && webhook) {
-      const payload = await readJson(request);
-      send(response, 202, this.harness.acceptWebhook(tokenOf(webhook), payload));
-      return;
-    }
     if (method === "GET" && notifications) {
+      this.owns(principal, idOf(notifications));
       send(response, 200, { notifications: this.harness.db.listNotifications(idOf(notifications)) });
       return;
     }
     if (method === "POST" && notificationRead) {
-      this.harness.db.markNotificationRead(idOf(notificationRead));
+      const note = this.harness.db.getNotification(idOf(notificationRead));
+      if (!note) throw new HttpError(404, "not found");
+      this.owns(principal, note.userId);
+      this.harness.db.markNotificationRead(note.id);
       send(response, 204, null);
       return;
     }
     throw new HttpError(404, "not found");
   }
 
-  private requireTask(id: string) {
+  private principal(request: http.IncomingMessage): Principal | undefined {
+    if (this.harness.config.authMode === "dev") return { kind: "dev" };
+    const header = request.headers.authorization;
+    const value = Array.isArray(header) ? header[0] : header;
+    const found = /^Bearer\s+(\S+)$/i.exec(value ?? "");
+    const token = found?.[1];
+    if (!token) return undefined;
+    return this.harness.db.principalForToken(hashToken(token));
+  }
+
+  private requireUser(principal: Principal): void {
+    if (principal.kind === "bootstrap") throw new HttpError(403, "forbidden");
+  }
+
+  private owns(principal: Principal, userId: string): void {
+    if (principal.kind === "dev") return;
+    if (principal.kind !== "user" || principal.userId !== userId) throw new HttpError(404, "not found");
+  }
+
+  private ownedTask(principal: Principal, id: string) {
     const task = this.harness.db.getTask(id);
     if (!task) throw new HttpError(404, "task not found");
+    this.owns(principal, task.userId);
     return task;
+  }
+
+  private ownedMemory(principal: Principal, id: string): void {
+    const memory = this.harness.db.getMemory(id);
+    if (!memory) throw new HttpError(404, "not found");
+    this.owns(principal, memory.userId);
   }
 }
 

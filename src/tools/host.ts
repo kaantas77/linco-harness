@@ -1,5 +1,7 @@
 import type { LincoDb } from "../db/database.js";
+import type { SandboxMode } from "../security/isolate.js";
 import type { SkillCatalog } from "../skills/catalog.js";
+import type { TaskClaim } from "../types.js";
 import type { BrowserProvider } from "./browser.js";
 import type { ComputerProvider } from "./computer.js";
 
@@ -15,6 +17,9 @@ export interface ToolHost {
   browser: BrowserProvider;
   computer: ComputerProvider;
   signal: AbortSignal;
+  claim: TaskClaim;
+  allowLoopback: boolean;
+  sandbox: SandboxMode;
   markApproval: () => void;
   /** Record a child the current turn will park on. Absent outside a live agent run. */
   parkChild?: (childId: string) => void;

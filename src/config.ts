@@ -18,6 +18,21 @@ export interface LincoConfig {
   /** How long a claimed task stays running without a heartbeat. */
   leaseMs: number;
   heartbeatMs: number;
+  /** `token` rejects anonymous API calls. `dev` is the open loopback mode. */
+  authMode: "token" | "dev";
+  /** Stable bootstrap secret. When omitted, the API process generates one. */
+  bootstrapToken?: string;
+  /** Worker processes leave credential rows to the API process. */
+  manageCredentials: boolean;
+  /** Lets web_fetch and the browser open loopback. Off unless set. */
+  allowLoopback: boolean;
+  /** `require` refuses shell and code mode when the OS sandbox is missing. */
+  sandbox: "require" | "off";
+}
+
+export function loopbackHost(host: string): boolean {
+  const value = host.replace(/^\[|\]$/g, "").toLowerCase();
+  return value === "127.0.0.1" || value === "localhost" || value === "::1";
 }
 
 export function loadConfig(
@@ -39,7 +54,17 @@ export function loadConfig(
     schedulerIntervalMs: overrides.schedulerIntervalMs ?? numberEnv(env.LINCO_SCHEDULER_MS, 1_000),
     leaseMs: overrides.leaseMs ?? numberEnv(env.LINCO_LEASE_MS, 15_000),
     heartbeatMs: overrides.heartbeatMs ?? numberEnv(env.LINCO_HEARTBEAT_MS, 2_000),
+    authMode: overrides.authMode ?? (env.LINCO_AUTH === "dev" ? "dev" : "token"),
+    bootstrapToken: present(overrides.bootstrapToken ?? env.LINCO_BOOTSTRAP_TOKEN),
+    manageCredentials: overrides.manageCredentials ?? true,
+    allowLoopback: overrides.allowLoopback ?? env.LINCO_ALLOW_LOOPBACK === "1",
+    sandbox: overrides.sandbox ?? (env.LINCO_SANDBOX === "off" ? "off" : "require"),
   };
+}
+
+function present(value: string | undefined): string | undefined {
+  if (!value || !value.trim()) return undefined;
+  return value;
 }
 
 function numberEnv(value: string | undefined, fallback: number): number {

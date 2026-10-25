@@ -8,6 +8,8 @@ export interface BrowserTarget {
   workspaceRoot: string;
   taskId: string;
   signal: AbortSignal;
+  /** Local test pages. Production navigation leaves this off. */
+  allowLoopback?: boolean;
 }
 
 export interface PageShot {
@@ -21,6 +23,7 @@ interface LiveSession {
   taskId: string;
   profile: string;
   lockPath: string;
+  allowLoopback: boolean;
   context: BrowserContext;
   page: Page;
   snapshotId: number;
@@ -203,6 +206,7 @@ async function acquire(target: BrowserTarget): Promise<LiveSession> {
     taskId: target.taskId,
     profile: key,
     lockPath,
+    allowLoopback: target.allowLoopback === true,
     context: undefined as unknown as BrowserContext,
     page: undefined as unknown as Page,
     snapshotId: 0,
@@ -226,7 +230,7 @@ async function acquire(target: BrowserTarget): Promise<LiveSession> {
         return;
       }
       try {
-        await assertNavigable(requestUrl);
+        await assertNavigable(requestUrl, { allowLoopback: reserved.allowLoopback });
         await route.continue();
       } catch {
         await route.abort("blockedbyclient");
@@ -262,7 +266,7 @@ function requireSession(target: BrowserTarget): LiveSession {
 }
 
 async function goto(session: LiveSession, target: BrowserTarget, raw: string): Promise<void> {
-  const url = await assertNavigable(raw);
+  const url = await assertNavigable(raw, { allowLoopback: target.allowLoopback === true });
   await session.page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 15_000, signal: target.signal });
   invalidate(session);
 }

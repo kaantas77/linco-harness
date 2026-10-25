@@ -59,6 +59,9 @@ export function catalogTools(host: ToolHost): AgentTool[] {
       }),
       executionMode: "sequential",
       execute: async (_id, params) => {
+        if (!host.db.holdsLease(host.claim.taskId, host.claim.fence, host.claim.workerId)) {
+          return error("worker lease is no longer held");
+        }
         const memory = host.db.createMemory({
           userId: host.userId,
           title: params.title,
@@ -78,7 +81,7 @@ export function catalogTools(host: ToolHost): AgentTool[] {
       executionMode: "sequential",
       execute: async (_id, params) => {
         const steps = params.steps;
-        host.db.setPlan(host.taskId, steps);
+        if (!host.db.setPlan(host.taskId, steps, host.claim)) return error("worker lease is no longer held");
         return text(JSON.stringify(steps), { steps });
       },
     }),
@@ -115,17 +118,15 @@ export function catalogTools(host: ToolHost): AgentTool[] {
 
 export function queueChild(host: ToolHost, prompt: string): { task: Task } | { error: string } {
   if (host.parentTaskId) return { error: "a child task cannot spawn another child" };
-  if (prompt.length > 8_000) return { error: "prompt exceeds 8000 characters" };
-  if (host.db.countChildren(host.taskId) >= 8) return { error: "child task limit reached" };
-  const session = host.db.createSession(host.userId, host.skills, host.systemPrompt);
-  const task = host.db.enqueueTask({
-    sessionId: session.id,
+  const dispatched = host.db.dispatchOwned(host.claim, {
     userId: host.userId,
-    prompt,
-    kind: "child",
-    parentId: host.taskId,
-    maxAttempts: 1,
+    skills: host.skills,
+    systemPrompt: host.systemPrompt,
+    prompts: [prompt],
   });
+  if ("error" in dispatched) return dispatched;
+  const task = dispatched.tasks[0];
+  if (!task) return { error: "child task was not queued" };
   return { task };
 }
 
