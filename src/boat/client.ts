@@ -63,9 +63,14 @@ export interface BoatClient {
 }
 
 export class BoatFailure extends Error {
-  constructor(message: string) {
+  readonly httpStatus: number | null;
+  readonly code: string;
+
+  constructor(message: string, detail: { httpStatus?: number | null; code?: string } = {}) {
     super(redactBoat(message));
     this.name = "BoatFailure";
+    this.httpStatus = detail.httpStatus ?? null;
+    this.code = detail.code ?? "";
   }
 }
 
@@ -248,7 +253,7 @@ async function asBoatFailure(error: unknown): Promise<BoatFailure> {
     } catch {
       code = "";
     }
-    return new BoatFailure(`boat api ${error.response.status}${code ? ` ${code}` : ""}`);
+    return new BoatFailure(`boat api ${error.response.status}${code ? ` ${code}` : ""}`, { httpStatus: error.response.status, code });
   }
   if (error instanceof Error) return new BoatFailure(error.message);
   return new BoatFailure("boat request failed");

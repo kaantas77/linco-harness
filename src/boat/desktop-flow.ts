@@ -94,21 +94,27 @@ export async function typeIntoEditor(driver: DriverCaller, filePath: string, tex
     const catalog = await catalogOf(driver, calls);
     const editorPattern = /gedit|text editor|xed|mousepad|kate|pluma|typed\.txt|nano|terminal/i;
     let launched = "";
+    const basename = filePath.split("/").pop() ?? "";
+    let ids: { pid?: number; windowId?: number } = {};
     try {
+      const beforeIds = new Set(readWindows((await run(driver, calls, "list_windows", {})).text).map((window) => window.windowId));
       await run(driver, calls, "launch_app", {
         name: "gnome-terminal",
         launch_path: "/usr/bin/gnome-terminal",
         additional_arguments: ["--", "nano", filePath],
       });
-      await sleep(1000);
+      await sleep(1200);
+      const opened = pickEditorWindow(beforeIds, readWindows((await run(driver, calls, "list_windows", {})).text), basename);
+      if (opened?.pid) ids = { pid: opened.pid, windowId: opened.windowId };
     } catch (error) {
       launched = message(error);
     }
-    let ids = await windowFor(driver, calls, {}, editorPattern);
     if (!ids.pid || !ids.windowId) {
       const attempt = await launchFirst(driver, calls, pickApps(catalog, editorPattern, EDITOR_FALLBACK), [filePath]);
       launched = attempt.detail;
-      ids = await windowFor(driver, calls, attempt.ids, editorPattern);
+      const found = await windowFor(driver, calls, attempt.ids, editorPattern);
+      const title = readWindows((await run(driver, calls, "list_windows", {})).text).find((window) => window.windowId === found.windowId)?.title ?? "";
+      if (found.pid && found.windowId && (!basename || title.includes(basename) || !title)) ids = found;
     }
     if (!ids.pid || !ids.windowId) return done(false, "wrong-window", clip(`${launched || "text editor was not found"} catalog ${catalog}`), calls, retries);
     await run(driver, calls, "bring_to_front", { pid: ids.pid, window_id: ids.windowId });
@@ -352,6 +358,17 @@ async function launchFirst(
     }
   }
   return { ids: {}, detail };
+}
+
+/** Prefer the window titled with this file. A new terminal is second. An older editor is not a match. */
+export function pickEditorWindow(
+  beforeIds: ReadonlySet<number>,
+  windows: ReadonlyArray<{ windowId: number; pid?: number; title: string }>,
+  basename: string,
+): { windowId: number; pid?: number; title: string } | undefined {
+  const named = windows.find((window) => window.pid && basename.length > 0 && window.title.includes(basename));
+  if (named) return named;
+  return windows.find((window) => window.pid && !beforeIds.has(window.windowId) && /nano|terminal|gedit|text editor/i.test(window.title));
 }
 
 async function windowFor(

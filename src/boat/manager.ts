@@ -8,6 +8,7 @@ import { BoatFailure, type BoatClient, type BoatMachineType, type BoatSandboxVie
 import { fitArguments, type DriverSchema } from "./driver-schema.js";
 import { REMOTE_PREFIX, REMOTE_WORKSPACE, RETENTION_NOTE, boatFilePath, quoteShell, workspaceRelative } from "./paths.js";
 import { redactBoat } from "./redact.js";
+import type { ChannelStage } from "./probe.js";
 import {
   parseVmBrowserResult,
   vmBrowserCallCommand,
@@ -328,6 +329,85 @@ export class BoatSandboxManager {
     }
   }
 
+  /** Holds the desktop lock for one editor flow. The callback's calls do not take the lock again. */
+  async withDesktop<T>(
+    userId: string,
+    taskId: string,
+    work: (call: (tool: string, args: Record<string, unknown>) => Promise<DesktopObservation>) => Promise<T>,
+  ): Promise<T> {
+    const row = await this.ensure(userId);
+    if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
+    if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 120_000)) {
+      throw new BoatFailure("desktop is in use by another task");
+    }
+    try {
+      await this.guardUsage(row);
+      if (!this.schemasLoaded) this.rememberSchemas(await this.options.client.desktop(row.sandboxId, "tools/list", {}));
+      const sandboxId = row.sandboxId;
+      const call = async (tool: string, args: Record<string, unknown>) => {
+        let next = args;
+        if (tool !== "tools/list") {
+          const fitted = fitArguments(this.schemas.get(tool), args);
+          if (fitted.missing.length > 0) throw new BoatFailure(`desktop ${tool} is missing ${fitted.missing.join(", ")}`);
+          next = fitted.args;
+        }
+        const observation = await this.options.client.desktop(sandboxId, tool, next);
+        if (tool === "tools/list") this.rememberSchemas(observation);
+        return observation;
+      };
+      return await work(call);
+    } finally {
+      this.options.db.releaseDesktopLock(row.sandboxId, taskId);
+      this.touch(userId);
+    }
+  }
+
+  /** Records each file and command path once. It does not retry a failed call. */
+  async fileStages(userId: string, relativePath: string): Promise<ChannelStage[]> {
+    const row = await this.requireSandbox(userId);
+    const sandboxId = row.sandboxId;
+    if (!sandboxId) throw new BoatFailure("boat sandbox is missing");
+    const state = await this.sandboxState(sandboxId);
+    const absolute = `/home/user/${boatFilePath(relativePath)}`;
+    const stages: ChannelStage[] = [this.plain("sandbox", /ready|running|idle/.test(state), state, state)];
+    stages.push(await this.capture(state, "readText", () => this.options.client.readText(sandboxId, boatFilePath(relativePath))));
+    stages.push(await this.capture(state, "stat", () => this.options.client.command({ sandboxId, command: `stat -c '%s' -- ${quoteShell(absolute)}`, timeoutSeconds: 15 })));
+    stages.push(await this.capture(state, "cat", () => this.options.client.command({ sandboxId, command: `cat -- ${quoteShell(absolute)}`, timeoutSeconds: 15 })));
+    return stages;
+  }
+
+  /** Separates a healthy command channel from the file API before any desktop save. */
+  async channelStages(userId: string): Promise<ChannelStage[]> {
+    const row = await this.requireSandbox(userId);
+    const sandboxId = row.sandboxId;
+    if (!sandboxId) throw new BoatFailure("boat sandbox is missing");
+    const state = await this.sandboxState(sandboxId);
+    const stages: ChannelStage[] = [];
+    stages.push(await this.capture(state, "execCommand", () => this.options.client.command({
+      sandboxId,
+      command: "echo LINCO-CHANNEL; df -P /home/user | tail -n 1; cut -d ' ' -f 1-3 /proc/loadavg",
+      timeoutSeconds: 15,
+    })));
+    stages.push(await this.capture(state, "writeText", async () => {
+      await this.options.client.command({ sandboxId, command: "mkdir -p /home/user/linco/proof", timeoutSeconds: 15 });
+      await this.options.client.writeText(sandboxId, "linco/proof/channel-104.txt", "CHANNEL-104\n");
+      return "written";
+    }));
+    stages.push(await this.capture(state, "readText", () => this.options.client.readText(sandboxId, "linco/proof/channel-104.txt")));
+    stages.push(await this.capture(state, "cat", () => this.options.client.command({
+      sandboxId,
+      command: "cat /home/user/linco/proof/channel-104.txt",
+      timeoutSeconds: 15,
+    })));
+    stages.push(await this.capture(state, "readMissing", () => this.options.client.readText(sandboxId, "linco/proof/missing-104.txt")));
+    stages.push(await this.capture(state, "catMissing", () => this.options.client.command({
+      sandboxId,
+      command: "cat /home/user/linco/proof/missing-104.txt",
+      timeoutSeconds: 15,
+    })));
+    return stages;
+  }
+
   async browserAct(userId: string, taskId: string, request: VmBrowserRequest): Promise<VmBrowserResult> {
     if (request.op === "goto" || request.op === "fill" || request.op === "navigate" || request.op === "openRead") {
       await inspectDestination(request.url, { allowLoopback: false, lookup: this.options.lookup });
@@ -487,6 +567,42 @@ export class BoatSandboxManager {
     }
     this.options.db.saveComputer(row.userId, { status: "stopped", lastError: "boat usage limit reached", touch: false });
     throw new BoatFailure("boat usage limit reached");
+  }
+
+  private async sandboxState(sandboxId: string): Promise<string> {
+    try {
+      return (await this.options.client.get(sandboxId)).state;
+    } catch (error) {
+      return messageOf(error).slice(0, 80);
+    }
+  }
+
+  private plain(stage: string, ok: boolean, detail: string, sandboxState: string): ChannelStage {
+    return { stage, ok, apiOk: true, httpStatus: null, code: "", sandboxState, detail: detail.slice(0, 220) };
+  }
+
+  private async capture(sandboxState: string, stage: string, work: () => Promise<unknown>): Promise<ChannelStage> {
+    try {
+      const value = await work();
+      if (value && typeof value === "object" && "exitCode" in value) {
+        const result = value as { exitCode: number; stdout: string; stderr: string };
+        const detail = `exit ${result.exitCode} ${(result.stdout || result.stderr).replace(/\s+/g, " ").slice(0, 160)}`;
+        return { stage, ok: result.exitCode === 0, apiOk: true, httpStatus: null, code: "", sandboxState, detail };
+      }
+      const text = typeof value === "string" ? value : "ok";
+      return { stage, ok: true, apiOk: true, httpStatus: null, code: "", sandboxState, detail: text.replace(/\s+/g, " ").slice(0, 160) };
+    } catch (error) {
+      const failure = error instanceof BoatFailure ? error : undefined;
+      return {
+        stage,
+        ok: false,
+        apiOk: false,
+        httpStatus: failure?.httpStatus ?? null,
+        code: failure?.code ?? "",
+        sandboxState,
+        detail: messageOf(error).slice(0, 180),
+      };
+    }
   }
 
   private rememberSchemas(observation: DesktopObservation): void {
