@@ -87,9 +87,9 @@ export interface TaskCheckpoint {
   waitFor?: string[];
   /** Resume the saved transcript instead of sending the user message again. */
   resumeChildren?: boolean;
+  /** When set, the worker hides tools outside this route. */
+  toolProfile?: "agent" | "search" | "browser" | "desktop" | "code";
 }
-
-/** The worker generation that is allowed to write a running task. */
 export interface TaskClaim {
   taskId: string;
   fence: number;

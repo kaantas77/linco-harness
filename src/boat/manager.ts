@@ -289,13 +289,54 @@ export class BoatSandboxManager {
     }
   }
 
-  /** Chrome in this VM only. The command string is what runs; the host does not launch a browser. */
+  /** One desktop lock for a short mechanical sequence. The first failed step stops the rest. */
+  async desktopSequence(
+    userId: string,
+    taskId: string,
+    steps: Array<{ tool: string; args: Record<string, unknown> }>,
+  ): Promise<Array<{ tool: string; ok: boolean; detail: string }>> {
+    if (steps.length === 0 || steps.length > 8) throw new BoatFailure("desktop sequence needs 1 to 8 steps");
+    const allowed = new Set(["click", "type_text", "press_key", "hotkey", "bring_to_front"]);
+    const row = await this.ensure(userId);
+    if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
+    if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 90_000)) {
+      throw new BoatFailure("desktop is in use by another task");
+    }
+    const results: Array<{ tool: string; ok: boolean; detail: string }> = [];
+    try {
+      await this.guardUsage(row);
+      if (!this.schemasLoaded) this.rememberSchemas(await this.options.client.desktop(row.sandboxId, "tools/list", {}));
+      for (const step of steps) {
+        if (!allowed.has(step.tool)) {
+          results.push({ tool: step.tool, ok: false, detail: "step is not allowed" });
+          break;
+        }
+        try {
+          const fitted = fitArguments(this.schemas.get(step.tool), step.args);
+          if (fitted.missing.length > 0) throw new BoatFailure(`desktop ${step.tool} is missing ${fitted.missing.join(", ")}`);
+          const observation = await this.options.client.desktop(row.sandboxId, step.tool, fitted.args);
+          results.push({ tool: step.tool, ok: true, detail: observation.text.slice(0, 180) });
+        } catch (error) {
+          results.push({ tool: step.tool, ok: false, detail: messageOf(error).slice(0, 180) });
+          break;
+        }
+      }
+      return results;
+    } finally {
+      this.options.db.releaseDesktopLock(row.sandboxId, taskId);
+      this.touch(userId);
+    }
+  }
+
   async browserAct(userId: string, taskId: string, request: VmBrowserRequest): Promise<VmBrowserResult> {
-    if (request.op === "goto" || request.op === "fill") {
+    if (request.op === "goto" || request.op === "fill" || request.op === "navigate" || request.op === "openRead") {
       await inspectDestination(request.url, { allowLoopback: false, lookup: this.options.lookup });
     }
     if (request.op === "fill") {
       if (!/^[A-Za-z0-9_-]+$/.test(request.name) || request.text.length > 200) throw new BoatFailure("field is not allowed");
+    }
+    if (request.op === "clickRef" || request.op === "fillRef" || request.op === "selectRef") {
+      if (!/^b\d+$/.test(request.ref) || !Number.isInteger(request.snapshotId)) throw new BoatFailure("that snapshot is stale — call browser_snapshot");
     }
     if (request.op === "showFile") workspaceRelative(request.relative);
     const row = await this.ensure(userId);

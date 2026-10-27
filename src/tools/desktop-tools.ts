@@ -79,6 +79,39 @@ export function desktopTools(host: ToolHost): AgentTool[] {
           return show(observation, false);
         }),
     }),
+    defineTool<{ steps: Array<{ tool: string; text?: string; x?: number; y?: number; key?: string }> }>({
+      name: "desktop_batch",
+      label: "Desktop sequence",
+      description: "Run focus, click, type, and key steps in order on this Boat desktop. Stops at the first error and does not retry. A screenshot is not proof that a file was saved; read the file afterwards.",
+      parameters: Type.Object({
+        steps: Type.Array(Type.Object({
+          tool: Type.String(),
+          text: Type.Optional(Type.String()),
+          x: Type.Optional(Type.Number()),
+          y: Type.Optional(Type.Number()),
+          key: Type.Optional(Type.String()),
+        })),
+      }),
+      executionMode: "sequential",
+      execute: async (_id, params) =>
+        guard(async () => {
+          if (!desktop.sequence) return error("desktop sequence is unavailable");
+          const mapped = params.steps.map((step) => ({
+            tool: step.tool,
+            args: {
+              ...(step.text !== undefined ? { text: step.text } : {}),
+              ...(step.x !== undefined ? { x: step.x } : {}),
+              ...(step.y !== undefined ? { y: step.y } : {}),
+              ...(step.key !== undefined ? { key: step.key } : {}),
+            },
+          }));
+          const results = await desktop.sequence(mapped);
+          const failed = results.find((step) => !step.ok);
+          const lines = results.map((step) => `${step.ok ? "ok" : "failed"} ${step.tool}: ${step.detail}`);
+          if (failed) return error(lines.join("\n"));
+          return text(lines.join("\n"));
+        }),
+    }),
     defineTool<{ url: string }>({
       name: "desktop_browser",
       label: "Desktop browser",

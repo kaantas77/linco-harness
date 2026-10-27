@@ -19,7 +19,10 @@ describe("boat vm browser", () => {
     expect(script).toContain("/home/user/linco/.linco/chrome-profile");
     expect(script).toContain("127.0.0.1");
     expect(script).not.toContain("--headless");
-    expect(script).toContain("--remote-allow-origins=*");
+    expect(script).toContain("--remote-allow-origins=http://127.0.0.1:9333");
+    expect(script).not.toContain("--remote-allow-origins=*");
+    expect(script).toContain("Accessibility.getFullAXTree");
+    expect(script).toContain("that snapshot is stale");
     expect(script).not.toContain("/Users");
     const checked = spawnSync(process.execPath, ["--check", path.resolve("src/boat/vm-browser.mjs")], { encoding: "utf8" });
     expect(checked.status).toBe(0);

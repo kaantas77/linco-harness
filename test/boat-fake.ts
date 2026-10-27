@@ -114,10 +114,13 @@ export class FakeBoat implements BoatClient {
     return { id: `snap_${sandboxId}`, status: "completed" };
   }
 
+  failDesktopTool = "";
+
   async desktop(sandboxId: string, tool: string, args: Record<string, unknown>): Promise<DesktopObservation> {
     this.must(sandboxId);
     this.desktopCalls.push({ sandboxId, tool, args });
     if (this.desktopDelayMs) await sleep(this.desktopDelayMs);
+    if (tool === this.failDesktopTool) throw new Error("driver failed");
     if (tool === "get_browser_state") return { text: "title Example Domain", tree: "window Chrome\ntitle Example Domain" };
     if (tool === "get_desktop_state" || tool === "get_window_state") {
       return { text: "window Chrome", tree: "window Chrome", image: { data: "aGk=", mimeType: "image/png" } };

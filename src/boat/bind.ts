@@ -43,6 +43,7 @@ export function bindBoat(
     acceptsImages: input.acceptsImages,
     call: (tool, args) => manager.desktop(input.userId, input.taskId, tool, args),
     schema: (name) => manager.schema(name),
+    sequence: (steps) => manager.desktopSequence(input.userId, input.taskId, steps),
   };
   const vmBrowser = {
     act: (request: VmBrowserRequest) => manager.browserAct(input.userId, input.taskId, request),

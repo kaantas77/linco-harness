@@ -4,7 +4,9 @@ import type { SkillSummary } from "../skills/catalog.js";
 import { browserTools, jevTools } from "./browser-tools.js";
 import { createTools } from "./create-tools.js";
 import { desktopTools } from "./desktop-tools.js";
+import { toolsForRoute } from "../agent/route.js";
 import { vmBrowserTools } from "./vm-browser-tools.js";
+import { webResearchTools } from "./web-research-tools.js";
 import { goalTools } from "./goal-tools.js";
 import type { ToolHost } from "./host.js";
 
@@ -71,6 +73,7 @@ const BOAT_SUFFIX = [
   "browser_* ve jev_run bu oturumda yoktur. Masaüstü için desktop_state, desktop_tree ve desktop_screenshot kullan.",
   "desktop_click, desktop_type, desktop_window ve desktop_browser onay ister.",
   "vm_browser_goto ve vm_browser_fill bu sanal makinedeki izole Chrome profilini kullanır ve onay ister. Host tarayıcısı açılmaz.",
+  "Web sayfasında birincil yol browser_snapshot ref'leridir. Eski snapshotId reddedilir.",
   "Model görüntü kabul etmiyorsa ekran görüntüsü yerine erişilebilirlik ağacı döner.",
 ].join("\n");
 
@@ -98,8 +101,9 @@ export function sessionHasPlan(prompt: string): boolean {
 export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
   const base = createTools(host);
   if (host.desktop) {
-    const desktop = [...base, ...desktopTools(host), ...vmBrowserTools(host)];
-    return sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
+    const desktop = [...base, ...desktopTools(host), ...vmBrowserTools(host), ...webResearchTools(host)];
+    const withGoal = sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
+    return toolsForRoute(withGoal, host.toolProfile);
   }
   if (!sessionHasBrowser(prompt)) return base;
   const browser = browserTools(host);

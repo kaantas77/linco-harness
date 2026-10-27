@@ -13,6 +13,7 @@ const PORT = 9333;
 const PROOF = "/home/user/linco/proof";
 
 let engine = "starting";
+let semantic = { snapshotId: 0, targetId: "", url: "", title: "", refs: new Map() };
 let pwPage = null;
 let ws = null;
 let sessionId = "";
@@ -107,7 +108,7 @@ async function ensureChrome() {
     `--user-data-dir=${PROFILE}`,
     "--remote-debugging-address=127.0.0.1",
     `--remote-debugging-port=${PORT}`,
-    "--remote-allow-origins=*",
+    "--remote-allow-origins=http://127.0.0.1:9333",
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-dev-shm-usage",
@@ -303,6 +304,188 @@ function grabDesktop() {
   throw new Error(`desktop grab failed ${errors.join(" ")}`);
 }
 
+const USEFUL = new Set(["button", "link", "textbox", "searchbox", "checkbox", "radio", "combobox", "tab", "menuitem", "switch"]);
+const TAKEOVER = /\b(captcha|mfa|2fa|one[- ]time|password|passkey|verify you are human|doğrulama kodu|şifre)\b/i;
+
+async function pageSocket() {
+  const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
+  const page = pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+  if (!page) throw new Error("no debuggable browser page");
+  const socket = new WebSocket(page.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    socket.addEventListener("open", resolve, { once: true });
+    socket.addEventListener("error", () => reject(new Error("DevTools connection failed")), { once: true });
+  });
+  let next = 0;
+  const pending = new Map();
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data));
+    const waiter = pending.get(message.id);
+    if (!waiter) return;
+    pending.delete(message.id);
+    if (message.error) waiter.reject(new Error(message.error.message || "cdp error"));
+    else waiter.resolve(message.result || {});
+  });
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    const id = ++next;
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`cdp timeout ${method}`));
+    }, 15_000);
+    pending.set(id, {
+      resolve: (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    });
+    socket.send(JSON.stringify({ id, method, params }));
+  });
+  return { page, send, close: () => socket.close() };
+}
+
+async function takeSnapshot() {
+  const session = await pageSocket();
+  try {
+    await session.send("Accessibility.enable");
+    await session.send("DOM.enable").catch(() => undefined);
+    const tree = await session.send("Accessibility.getFullAXTree", { depth: 14 });
+    const elements = [];
+    const refs = new Map();
+    for (const node of tree.nodes ?? []) {
+      const role = String(node.role?.value ?? "").toLowerCase();
+      const backend = Number(node.backendDOMNodeId ?? 0);
+      const name = String(node.name?.value ?? "").replace(/\s+/g, " ").trim().slice(0, 180);
+      if (node.ignored || !USEFUL.has(role) || !backend) continue;
+      if (!name && role !== "textbox" && role !== "searchbox") continue;
+      const ref = `b${backend}`;
+      const element = { ref, role, name: name || "unnamed", disabled: Boolean(node.properties?.some((property) => property.name === "disabled" && property.value?.value === true)) };
+      if (role === "textbox" || role === "searchbox") element.filled = Boolean(String(node.value?.value ?? "").trim());
+      elements.push(element);
+      refs.set(ref, backend);
+      if (elements.length >= 80) break;
+    }
+    if (elements.some((element) => TAKEOVER.test(element.name))) {
+      throw new Error("USER_TAKEOVER_REQUIRED");
+    }
+    semantic = { snapshotId: semantic.snapshotId + 1, targetId: session.page.id, url: session.page.url, title: session.page.title || "", refs };
+    return {
+      snapshotId: semantic.snapshotId,
+      targetId: semantic.targetId,
+      url: semantic.url,
+      title: semantic.title,
+      elements,
+    };
+  } finally {
+    session.close();
+  }
+}
+
+function requireRef(payload) {
+  if (!payload || payload.snapshotId !== semantic.snapshotId || !semantic.refs.has(payload.ref)) {
+    throw new Error("that snapshot is stale — call browser_snapshot");
+  }
+  return semantic.refs.get(payload.ref);
+}
+
+async function semanticClick(payload) {
+  const backend = requireRef(payload);
+  const before = semantic.url;
+  const session = await pageSocket();
+  try {
+    if (session.page.id !== semantic.targetId) throw new Error("that snapshot is stale — call browser_snapshot");
+    await session.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: backend }).catch(() => undefined);
+    const box = await session.send("DOM.getBoxModel", { backendNodeId: backend });
+    const quad = box.model?.content;
+    if (!quad || quad.length < 8) throw new Error("element is not visible");
+    const x = (quad[0] + quad[2]) / 2;
+    const y = (quad[1] + quad[5]) / 2;
+    if (x < 0 || y < 0 || x > 1400 || y > 1000) throw new Error("element is not visible");
+    await session.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+    await session.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+  } finally {
+    session.close();
+  }
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await sleep(250);
+    const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
+    const page = pages.find((item) => item.id === semantic.targetId) ?? pages.find((item) => item.type === "page");
+    if (page?.url && page.url !== before && page.url !== "about:blank") break;
+  }
+  return takeSnapshot();
+}
+
+async function semanticFill(payload) {
+  const backend = requireRef(payload);
+  if (typeof payload.text !== "string" || payload.text.length > 200) throw new Error("field text is too long");
+  const session = await pageSocket();
+  try {
+    if (session.page.id !== semantic.targetId) throw new Error("that snapshot is stale — call browser_snapshot");
+    const resolved = await session.send("DOM.resolveNode", { backendNodeId: backend });
+    const result = await session.send("Runtime.callFunctionOn", {
+      objectId: resolved.object?.objectId,
+      functionDeclaration: "function(text){ if(!this || this.disabled || this.readOnly) return false; this.focus(); this.value = text; this.dispatchEvent(new Event('input',{bubbles:true})); this.dispatchEvent(new Event('change',{bubbles:true})); return typeof this.value === 'string' && this.value.length === text.length; }",
+      arguments: [{ value: payload.text }],
+      returnByValue: true,
+    });
+    if (!result.result?.value) throw new Error("form field was not filled");
+  } finally {
+    session.close();
+  }
+  return takeSnapshot();
+}
+
+async function semanticSelect(payload) {
+  const backend = requireRef(payload);
+  const value = String(payload.value ?? "");
+  if (!value || value.length > 80) throw new Error("option is not allowed");
+  const session = await pageSocket();
+  try {
+    if (session.page.id !== semantic.targetId) throw new Error("that snapshot is stale — call browser_snapshot");
+    const resolved = await session.send("DOM.resolveNode", { backendNodeId: backend });
+    const result = await session.send("Runtime.callFunctionOn", {
+      objectId: resolved.object?.objectId,
+      functionDeclaration: "function(value){ if(this.tagName!=='SELECT') return false; const option=[...this.options].find((item)=>item.label===value||item.value===value); if(!option||option.disabled) return false; this.value=option.value; this.dispatchEvent(new Event('change',{bubbles:true})); return true; }",
+      arguments: [{ value }],
+      returnByValue: true,
+    });
+    if (!result.result?.value) throw new Error("option was not selected");
+  } finally {
+    session.close();
+  }
+  return takeSnapshot();
+}
+
+async function waitForPage(raw) {
+  const expected = new URL(raw);
+  let last = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
+    const page = pages.find((item) => item.type === "page" && item.url && item.url !== "about:blank");
+    if (page?.url) {
+      assertPublic(page.url);
+      last = page;
+      const actual = new URL(page.url);
+      const strip = (value) => value.toString().replace(/\/$/, "");
+      const upgrade = expected.protocol === "http:" && actual.protocol === "https:" && expected.hostname === actual.hostname;
+      if (strip(actual) === strip(expected) || actual.origin === expected.origin || upgrade) {
+        return { page, match: strip(actual) === strip(expected) ? "exact" : "same-origin" };
+      }
+    }
+    await sleep(250);
+  }
+  if (!last) throw new Error("navigation was not observed");
+  return { page: last, match: "redirect" };
+}
+
+function snapshotResult(op, snapshot, extra = {}) {
+  const text = snapshot.elements.map((element) => `${element.ref} ${element.role} ${element.name}`).join("\n");
+  return { ok: true, engine, op, title: snapshot.title, url: snapshot.url, text, snapshot, ...extra };
+}
+
 async function handle(payload) {
   const op = payload?.op;
   if (op === "status") return { ok: true, engine, op };
@@ -313,13 +496,33 @@ async function handle(payload) {
   if (op === "read") return readCurrent(op);
   if (op === "goto") {
     await navigate(payload.url);
-    return readCurrent(op);
+    const current = await readCurrent(op);
+    if (current.url) assertPublic(current.url);
+    return current;
+  }
+  if (op === "navigate" || op === "openRead") {
+    await navigate(payload.url);
+    const current = await readCurrent(op);
+    if (current.url) assertPublic(current.url);
+    const waited = await waitForPage(payload.url);
+    const snapshot = await takeSnapshot();
+    const expectedTitle = typeof payload.expectedTitle === "string" ? payload.expectedTitle : "";
+    const expectedText = typeof payload.expectedText === "string" ? payload.expectedText : "";
+    const titleOk = !expectedTitle || snapshot.title === expectedTitle;
+    const textOk = !expectedText || snapshot.elements.some((element) => element.name.includes(expectedText)) || (current.text ?? "").includes(expectedText);
+    const verified = waited.match !== "redirect" && titleOk && textOk;
+    if (op === "openRead" && !verified) throw new Error(`navigation not verified: ${snapshot.url} ${snapshot.title}`);
+    return snapshotResult(op, snapshot, { verified, title: snapshot.title || current.title, text: `${current.text ?? ""}\n${snapshot.elements.map((element) => `${element.ref} ${element.role} ${element.name}`).join("\n")}`.trim() });
   }
   if (op === "fill") {
     await navigate(payload.url);
     await fillField(payload.name, payload.text, payload.submit === true);
     return readCurrent(op);
   }
+  if (op === "snapshot") return snapshotResult(op, await takeSnapshot());
+  if (op === "clickRef") return snapshotResult(op, await semanticClick(payload));
+  if (op === "fillRef") return snapshotResult(op, await semanticFill(payload));
+  if (op === "selectRef") return snapshotResult(op, await semanticSelect(payload));
   if (op === "showFile") {
     const file = workspaceFile(payload.relative);
     let openPath = file;

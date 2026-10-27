@@ -131,6 +131,7 @@ export class HarnessServer {
       const taskRecord = await this.harness.submit(idOf(sessionMessages), requiredString(body, "text"), {
         waitMs,
         maxAttempts: optionalNumber(body, "maxAttempts"),
+        toolProfile: optionalProfile(body),
       });
       send(response, 202, taskRecord);
       return;
@@ -341,6 +342,13 @@ function optionalString(body: Record<string, unknown>, key: string): string | un
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new HttpError(400, `${key} must be a string`);
   return value;
+}
+
+function optionalProfile(body: Record<string, unknown>): "auto" | "agent" | "search" | "browser" | "desktop" | "code" | undefined {
+  const value = body.toolProfile;
+  if (value === undefined) return undefined;
+  if (value === "auto" || value === "agent" || value === "search" || value === "browser" || value === "desktop" || value === "code") return value;
+  throw new HttpError(400, "toolProfile is invalid");
 }
 
 function optionalNumber(body: Record<string, unknown>, key: string): number | undefined {

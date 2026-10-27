@@ -20,6 +20,7 @@ import { modelAcceptsImages } from "../boat/vision.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
 import { recoveryDecision } from "./lease.js";
+import { routeExecution, type ToolProfile } from "./route.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
 import { closeJevTask } from "../browser/jev-delegation.js";
 import { closeTaskBrowser } from "../browser/session.js";
@@ -155,10 +156,11 @@ export class Harness {
   async submit(
     sessionId: string,
     prompt: string,
-    options: { kind?: TaskKind; maxAttempts?: number; waitMs?: number; parentId?: string } = {},
+    options: { kind?: TaskKind; maxAttempts?: number; waitMs?: number; parentId?: string; toolProfile?: "auto" | ToolProfile } = {},
   ): Promise<Task> {
     const session = this.db.getSession(sessionId);
     if (!session) throw new Error(`unknown session ${sessionId}`);
+    const toolProfile = options.toolProfile === "auto" ? routeExecution(prompt).profile : options.toolProfile;
     const task = this.db.enqueueTask({
       sessionId,
       userId: session.userId,
@@ -166,6 +168,7 @@ export class Harness {
       kind: options.kind ?? "chat",
       maxAttempts: options.maxAttempts ?? 1,
       parentId: options.parentId,
+      checkpoint: toolProfile ? { toolProfile } : undefined,
     });
     if (!options.waitMs) return task;
     return this.waitForTask(task.id, options.waitMs);
@@ -387,6 +390,7 @@ export class Harness {
         computer: bound?.computer ?? this.computer,
         files: bound?.files ?? localFiles(session.workspacePath),
         ...(bound ? { desktop: bound.desktop, vmBrowser: bound.vmBrowser } : {}),
+        ...(task.checkpoint?.toolProfile ? { toolProfile: task.checkpoint.toolProfile } : {}),
         signal: abort.signal,
         claim,
         allowLoopback: this.config.allowLoopback,

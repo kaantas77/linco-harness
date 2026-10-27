@@ -7,13 +7,19 @@ const SCRIPT_PATH = "/home/user/linco/.linco/vm-browser.mjs";
 const PROFILE = "/home/user/linco/.linco/chrome-profile";
 
 export type VmBrowserRequest =
-  | { op: "goto"; url: string }
-  | { op: "read" }
+  | { op: "goto" | "navigate" | "openRead"; url: string; expectedTitle?: string; expectedText?: string }
+  | { op: "read" | "snapshot" | "screenshot" | "grab" | "hold" }
   | { op: "fill"; url: string; name: string; text: string; submit?: boolean }
-  | { op: "showFile"; relative: string }
-  | { op: "screenshot" }
-  | { op: "grab" }
-  | { op: "hold" };
+  | { op: "clickRef" | "fillRef" | "selectRef"; ref: string; snapshotId: number; text?: string; value?: string }
+  | { op: "showFile"; relative: string };
+
+export interface AxElementResult {
+  ref: string;
+  role: string;
+  name: string;
+  disabled: boolean;
+  filled?: boolean;
+}
 
 export interface VmBrowserResult {
   ok: boolean;
@@ -28,6 +34,14 @@ export interface VmBrowserResult {
   width?: number;
   height?: number;
   captureTool?: string;
+  verified?: boolean;
+  snapshot?: {
+    snapshotId: number;
+    targetId: string;
+    url: string;
+    title: string;
+    elements: AxElementResult[];
+  };
 }
 
 /** The script that Boat runs. Loading it here does not launch a browser. */

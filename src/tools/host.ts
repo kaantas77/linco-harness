@@ -4,6 +4,7 @@ import type { SkillCatalog } from "../skills/catalog.js";
 import type { TaskClaim } from "../types.js";
 import type { DesktopObservation } from "../boat/client.js";
 import type { DriverSchema } from "../boat/driver-schema.js";
+import type { ToolProfile } from "../agent/route.js";
 import type { VmBrowserRequest, VmBrowserResult } from "../boat/vm-browser.js";
 import type { BrowserProvider } from "./browser.js";
 import type { ComputerProvider } from "./computer.js";
@@ -13,6 +14,7 @@ export interface DesktopBridge {
   acceptsImages: boolean;
   call(tool: string, args: Record<string, unknown>): Promise<DesktopObservation>;
   schema?: (name: string) => DriverSchema | undefined;
+  sequence?: (steps: Array<{ tool: string; args: Record<string, unknown> }>) => Promise<Array<{ tool: string; ok: boolean; detail: string }>>;
 }
 
 export interface ToolHost {
@@ -30,6 +32,8 @@ export interface ToolHost {
   desktop?: DesktopBridge;
   /** Chrome inside the Boat VM. Absent on the host computer. */
   vmBrowser?: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
+  /** Set from the task checkpoint. Absent means the full tool list. */
+  toolProfile?: ToolProfile;
   signal: AbortSignal;
   claim: TaskClaim;
   allowLoopback: boolean;
