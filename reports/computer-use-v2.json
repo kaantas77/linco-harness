@@ -1,0 +1,333 @@
+{
+  "createdAt": "2026-10-27T18:22:33.647Z",
+  "startedFrom": "8712a8f",
+  "mode": "live",
+  "performanceClaim": "none",
+  "liveExecuted": true,
+  "liveReason": "Railway variables were injected for this process. Values were not written to the report.",
+  "limits": {
+    "machineType": "small",
+    "ttlSeconds": 1500,
+    "maxSeconds": 1200,
+    "boatUsd": 0.1,
+    "deepseekUsd": 0.75,
+    "scenarioMs": 150000,
+    "readyTimeoutMs": 180000
+  },
+  "sandboxId": "bx_9tcbmyxj",
+  "deleted": true,
+  "cuaProbe": {
+    "ok": true,
+    "detail": "ok; Found 3 windows: [xid=25165827] pid=Some(15272) \"Example Domain - Chromium\" 945x920+10+50 [xid=2097154] pid=Some(3822) \"ascii panel\" 1920x40+0+0 [xid=2097155] pid=Some(3822) \"ascii dock\" 264x76+828+988 174 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release (pid 3) - kworker/R-rcu_g (pid 4) - kworker/R-rcu_p (pid 5) - kworker/R-slub_ (pid 6) - kworker/R-netns (pid 7) - kworker/0:0H-events_highpri (pid 9) - kworker/R-mm_pe (pid 12) - rcu_tasks; titles Example Domain - Chromium | ascii panel | ascii dock",
+    "calls": [
+      "tools/list",
+      "list_apps",
+      "list_windows",
+      "launch_app",
+      "list_windows",
+      "bring_to_front",
+      "get_browser_state",
+      "start_session",
+      "browser_prepare",
+      "list_windows",
+      "click",
+      "hotkey",
+      "type_text",
+      "press_key",
+      "list_windows",
+      "get_accessibility_tree"
+    ]
+  },
+  "atspi": "DISPLAY=:0 DBUS=missing node /org/a11y/bus { interface org.freedesktop.DBus.Properties { methods: Get(in s interface_name, in s property_name, out v value); GetAll(in s interface_name, out a{sv} properties); Set(in s interface_name, in s property_name, in v value); signals: user 1907 1090 0 17:41 ? 00:00:00 /usr/libexec/at-spi-bus-launcher user 1914 1907 0 17:41 ? 00:00:00 /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 12 --address=unix",
+  "browserEngine": "cdp",
+  "controlled": [
+    {
+      "name": "cua-chrome",
+      "ok": true,
+      "durationMs": 7843,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "list_windows",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_browser_state",
+        "start_session",
+        "browser_prepare",
+        "list_windows",
+        "click",
+        "hotkey",
+        "type_text",
+        "press_key",
+        "list_windows",
+        "get_accessibility_tree"
+      ],
+      "deepseekUsd": 0,
+      "evidence": "ok; Found 3 windows: [xid=25165827] pid=Some(15272) \"Example Domain - Chromium\" 945x920+10+50 [xid=2097154] pid=Some(3822) \"ascii panel\" 1920x40+0+0 [xid=2097155] pid=Some(3822) \"ascii dock\" 264x76+828+988 174 running process(es), 3 visible window(s) - /sbin/init (pid 1) - kthreadd (pid 2) - pool_workqueue_release (pid 3) - kworker/R-rcu_g (pid 4) - kworker/R-rcu_p (pid 5) - kworker/R-slub_ (pid 6) - kworker/R-netns (pid 7) - kworker/0:0H-events_highpri (pid 9) - kworker/R-mm_pe (pid 12) - rcu_t"
+    },
+    {
+      "name": "example",
+      "ok": true,
+      "durationMs": 2813,
+      "toolCalls": [
+        "vm_browser_goto",
+        "vm_browser_read"
+      ],
+      "deepseekUsd": 0,
+      "evidence": "engine cdp; first title \"Example Domain\"; second title \"Example Domain\"; url https://example.com/"
+    },
+    {
+      "name": "form",
+      "ok": true,
+      "durationMs": 1478,
+      "toolCalls": [
+        "vm_browser_fill"
+      ],
+      "deepseekUsd": 0,
+      "evidence": "engine cdp; url https://httpbin.org/post; body contains the value true; title \"\""
+    },
+    {
+      "name": "typing",
+      "ok": true,
+      "durationMs": 8446,
+      "toolCalls": [
+        "tools/list",
+        "list_apps",
+        "launch_app",
+        "list_windows",
+        "bring_to_front",
+        "get_window_state",
+        "click",
+        "type_text",
+        "hotkey",
+        "press_key"
+      ],
+      "deepseekUsd": 0,
+      "evidence": "click true; type_text true; shell wrote the content: no; independent read \"PHASE102-TYPE \"; trim matched true; driver ok window_id=52428806 pid=16268 elements=1 - [0] window \"Terminal\" [actions=[activate]] "
+    },
+    {
+      "name": "shared-vm",
+      "ok": true,
+      "durationMs": 3209,
+      "toolCalls": [
+        "browser-hold",
+        "desktop",
+        "write",
+        "read"
+      ],
+      "deepseekUsd": 0,
+      "evidence": "lock desktop is in use by another task; hold ok; file \"PHASE102-SHARED\"; creates 1"
+    }
+  ],
+  "vision": [
+    {
+      "path": "original-omit",
+      "code": "DTFW",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 14876,
+      "dark": 138240,
+      "decoded": true,
+      "detail": "omit",
+      "reply": "OTFW",
+      "deepseekUsd": 0.00012059999999999999,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "original-high",
+      "code": "DTFW",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 14876,
+      "dark": 138240,
+      "decoded": true,
+      "detail": "high",
+      "reply": "OTFW",
+      "deepseekUsd": 0.000045336,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "desktop",
+      "code": "DTFW",
+      "ok": false,
+      "width": 1920,
+      "height": 1080,
+      "bytes": 89100,
+      "dark": 536708,
+      "decoded": true,
+      "detail": "high",
+      "reply": "OTFW",
+      "deepseekUsd": 0.00029879999999999994,
+      "evidence": "capture scrot; window title \"label-0.png (1228×490)\"; page bytes 4453; content"
+    },
+    {
+      "path": "cua-tool",
+      "code": "DTFW",
+      "ok": false,
+      "width": 1100,
+      "height": 800,
+      "bytes": 49464,
+      "dark": 406433,
+      "decoded": true,
+      "detail": "pi-default",
+      "reply": "OTFW",
+      "deepseekUsd": 0.000177,
+      "evidence": "window \"label-0.png (1228×490) - Chromium\" 1100x800; tree leaked false; sent through Pi image content"
+    },
+    {
+      "path": "original-omit",
+      "code": "3EA8",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 16176,
+      "dark": 156672,
+      "decoded": true,
+      "detail": "omit",
+      "reply": "3E48",
+      "deepseekUsd": 0.00012179999999999998,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "original-high",
+      "code": "3EA8",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 16176,
+      "dark": 156672,
+      "decoded": true,
+      "detail": "high",
+      "reply": "ZEH8",
+      "deepseekUsd": 0.000046536,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "desktop",
+      "code": "3EA8",
+      "ok": false,
+      "width": 1920,
+      "height": 1080,
+      "bytes": 89364,
+      "dark": 550658,
+      "decoded": true,
+      "detail": "high",
+      "reply": "3EAB",
+      "deepseekUsd": 0.0003,
+      "evidence": "capture scrot; window title \"label-1.png (1228×490)\"; page bytes 4709; content"
+    },
+    {
+      "path": "cua-tool",
+      "code": "3EA8",
+      "ok": true,
+      "width": 1100,
+      "height": 800,
+      "bytes": 49368,
+      "dark": 420383,
+      "decoded": true,
+      "detail": "pi-default",
+      "reply": "3EA8",
+      "deepseekUsd": 0.0001782,
+      "evidence": "window \"label-1.png (1228×490) - Chromium\" 1100x800; tree leaked false; sent through Pi image content"
+    },
+    {
+      "path": "original-omit",
+      "code": "NK6F",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 16276,
+      "dark": 140544,
+      "decoded": true,
+      "detail": "omit",
+      "reply": "HXEF",
+      "deepseekUsd": 0.00012179999999999998,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "original-high",
+      "code": "NK6F",
+      "ok": false,
+      "width": 1228,
+      "height": 490,
+      "bytes": 16276,
+      "dark": 140544,
+      "decoded": true,
+      "detail": "high",
+      "reply": "HXEF",
+      "deepseekUsd": 0.000046536,
+      "evidence": "original png sent directly; thinking disabled; no desktop and no tool result"
+    },
+    {
+      "path": "desktop",
+      "code": "NK6F",
+      "ok": false,
+      "width": 1920,
+      "height": 1080,
+      "bytes": 89724,
+      "dark": 538139,
+      "decoded": true,
+      "detail": "high",
+      "reply": "MKEF",
+      "deepseekUsd": 0.00029879999999999994,
+      "evidence": "capture scrot; window title \"label-2.png (1228×490)\"; page bytes 4857; content"
+    },
+    {
+      "path": "cua-tool",
+      "code": "NK6F",
+      "ok": false,
+      "width": 1100,
+      "height": 800,
+      "bytes": 49948,
+      "dark": 407864,
+      "decoded": true,
+      "detail": "pi-default",
+      "reply": "MKEF",
+      "deepseekUsd": 0.000177,
+      "evidence": "window \"label-2.png (1228×490) - Chromium\" 1100x800; tree leaked false; sent through Pi image content"
+    }
+  ],
+  "naturalLanguage": [
+    {
+      "name": "example",
+      "ok": true,
+      "durationMs": 5870,
+      "toolCalls": [
+        "vm_browser_goto!",
+        "vm_browser_goto"
+      ],
+      "deepseekUsd": 0.000517596,
+      "evidence": "status succeeded; tool true; independent title \"Example Domain\"; quote Sayfa açıldı. - **Başlık:** Example Domain - **URL:** https://example.com/ - İşlem, Boat bilgisayarındaki izole Chrome profilinde (vm_browser_goto) yapıldı; host tarayıcısı kullanılmadı. Başka bir işlem yapmadım, sonuç başlığı göründüğü için durdum."
+    },
+    {
+      "name": "typing",
+      "ok": false,
+      "durationMs": 11889,
+      "toolCalls": [
+        "desktop_state",
+        "desktop_click!",
+        "desktop_click!",
+        "desktop_tree"
+      ],
+      "deepseekUsd": 0.00276426,
+      "evidence": "status succeeded; click false; type false; shell false; independent read \"PHASE102-TYPE \""
+    }
+  ],
+  "totals": {
+    "durationMs": 74827,
+    "deepseekUsd": 0.005214264,
+    "boatUsd": 0.00035
+  },
+  "notes": [
+    "The agent model stays DeepSeek Flash. detail high is a measurement request, not a model change.",
+    "No second vision model was called.",
+    "A browser action runs only as a command inside the user's Boat VM.",
+    "On bx_9tcbmyxj the Cua keyboard path changed the Chromium title to Example Domain. That is one probe, not a five-trial rate.",
+    "A deleted sandbox, bx_ek9jw5yf, never started Chrome: the serve command contained `&;` and bash rejected it. Direct vision calls on that run returned empty content because thinking was left on and max_tokens was 64.",
+    "gdbus reached the accessibility bus while DBUS_SESSION_BUS_ADDRESS was unset in that command. Cua can still refuse the existing Chromium window.",
+    "The published engine is cdp: playwright-core was not imported, and the isolated Chrome on the VM desktop was driven through 127.0.0.1."
+  ]
+}

@@ -4,6 +4,7 @@ import type { SkillSummary } from "../skills/catalog.js";
 import { browserTools, jevTools } from "./browser-tools.js";
 import { createTools } from "./create-tools.js";
 import { desktopTools } from "./desktop-tools.js";
+import { vmBrowserTools } from "./vm-browser-tools.js";
 import { goalTools } from "./goal-tools.js";
 import type { ToolHost } from "./host.js";
 
@@ -69,6 +70,7 @@ const BOAT_SUFFIX = [
   "Host dosya sistemi bu araçların hedefi değildir.",
   "browser_* ve jev_run bu oturumda yoktur. Masaüstü için desktop_state, desktop_tree ve desktop_screenshot kullan.",
   "desktop_click, desktop_type, desktop_window ve desktop_browser onay ister.",
+  "vm_browser_goto ve vm_browser_fill bu sanal makinedeki izole Chrome profilini kullanır ve onay ister. Host tarayıcısı açılmaz.",
   "Model görüntü kabul etmiyorsa ekran görüntüsü yerine erişilebilirlik ağacı döner.",
 ].join("\n");
 
@@ -91,11 +93,12 @@ export function sessionHasPlan(prompt: string): boolean {
 }
 
 /** v1 sessions keep createTools. v2 appends browser tools. v3 appends browser_select and jev_run. v4 appends goal tools.
- * A Boat binding replaces the host browser with the sandbox desktop and does not add Playwright tools. */
+ * A Boat binding replaces the host browser with the sandbox desktop.
+ * vm_browser_* runs Chrome inside that VM. It does not add the host Playwright tools. */
 export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
   const base = createTools(host);
   if (host.desktop) {
-    const desktop = [...base, ...desktopTools(host)];
+    const desktop = [...base, ...desktopTools(host), ...vmBrowserTools(host)];
     return sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
   }
   if (!sessionHasBrowser(prompt)) return base;

@@ -386,7 +386,7 @@ export class Harness {
         browser: bound?.browser ?? this.browser,
         computer: bound?.computer ?? this.computer,
         files: bound?.files ?? localFiles(session.workspacePath),
-        ...(bound ? { desktop: bound.desktop } : {}),
+        ...(bound ? { desktop: bound.desktop, vmBrowser: bound.vmBrowser } : {}),
         signal: abort.signal,
         claim,
         allowLoopback: this.config.allowLoopback,

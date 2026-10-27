@@ -4,6 +4,7 @@ import type { SkillCatalog } from "../skills/catalog.js";
 import type { TaskClaim } from "../types.js";
 import type { DesktopObservation } from "../boat/client.js";
 import type { DriverSchema } from "../boat/driver-schema.js";
+import type { VmBrowserRequest, VmBrowserResult } from "../boat/vm-browser.js";
 import type { BrowserProvider } from "./browser.js";
 import type { ComputerProvider } from "./computer.js";
 import type { WorkspaceFiles } from "./local-files.js";
@@ -27,6 +28,8 @@ export interface ToolHost {
   computer: ComputerProvider;
   files?: WorkspaceFiles;
   desktop?: DesktopBridge;
+  /** Chrome inside the Boat VM. Absent on the host computer. */
+  vmBrowser?: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
   signal: AbortSignal;
   claim: TaskClaim;
   allowLoopback: boolean;

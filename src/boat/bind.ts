@@ -4,6 +4,7 @@ import type { DesktopBridge } from "../tools/host.js";
 import { localFiles, replaceSnippet, type WorkspaceFiles } from "../tools/local-files.js";
 import type { BoatSandboxManager } from "./manager.js";
 import { REMOTE_WORKSPACE } from "./paths.js";
+import type { VmBrowserRequest, VmBrowserResult } from "./vm-browser.js";
 
 export function bindBoat(
   manager: BoatSandboxManager,
@@ -14,6 +15,7 @@ export function bindBoat(
   computer: ComputerProvider;
   browser: BrowserProvider;
   desktop: DesktopBridge;
+  vmBrowser: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
 } {
   const files: WorkspaceFiles = {
     list: (relativePath) => manager.list(input.userId, relativePath),
@@ -42,7 +44,10 @@ export function bindBoat(
     call: (tool, args) => manager.desktop(input.userId, input.taskId, tool, args),
     schema: (name) => manager.schema(name),
   };
-  return { workspacePath: REMOTE_WORKSPACE, files, computer, browser, desktop };
+  const vmBrowser = {
+    act: (request: VmBrowserRequest) => manager.browserAct(input.userId, input.taskId, request),
+  };
+  return { workspacePath: REMOTE_WORKSPACE, files, computer, browser, desktop, vmBrowser };
 }
 
 export { localFiles };

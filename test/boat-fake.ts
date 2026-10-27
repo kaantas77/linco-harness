@@ -14,6 +14,7 @@ export class FakeBoat implements BoatClient {
   usageSeconds = 0;
   delayMs = 0;
   desktopDelayMs = 0;
+  commandDelayMs = 0;
   private readonly byKey = new Map<string, string>();
   private readonly boxes = new Map<string, Box>();
   private sequence = 0;
@@ -51,6 +52,7 @@ export class FakeBoat implements BoatClient {
   }
 
   async command(input: { sandboxId: string; command: string; cwd?: string; timeoutSeconds: number }): Promise<BoatCommandResult> {
+    if (this.commandDelayMs) await sleep(this.commandDelayMs);
     this.commands.push(input.command);
     const box = this.must(input.sandboxId);
     if (input.command.startsWith("curl ")) {
@@ -74,6 +76,9 @@ export class FakeBoat implements BoatClient {
       return ok("");
     }
     if (input.command.includes("boat_secret")) return ok("boat_secret https://box.on.boat.dev/desk?_token=abc");
+    if (input.command.includes("vm-browser.mjs call")) {
+      return ok('{"ok":true,"engine":"playwright","op":"goto","title":"Example Domain","url":"https://example.com/","text":"Example Domain"}\n');
+    }
     return ok("");
   }
 

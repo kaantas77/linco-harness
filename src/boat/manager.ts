@@ -8,6 +8,15 @@ import { BoatFailure, type BoatClient, type BoatMachineType, type BoatSandboxVie
 import { fitArguments, type DriverSchema } from "./driver-schema.js";
 import { REMOTE_PREFIX, REMOTE_WORKSPACE, RETENTION_NOTE, boatFilePath, quoteShell, workspaceRelative } from "./paths.js";
 import { redactBoat } from "./redact.js";
+import {
+  parseVmBrowserResult,
+  vmBrowserCallCommand,
+  vmBrowserInstallCommand,
+  vmBrowserPrepareCommand,
+  vmBrowserServeCommand,
+  type VmBrowserRequest,
+  type VmBrowserResult,
+} from "./vm-browser.js";
 
 const USABLE = new Set(["ready", "running", "idle"]);
 const STARTING = new Set(["init", "provisioning", "provisioned", "cloning"]);
@@ -274,6 +283,39 @@ export class BoatSandboxManager {
       const observation = await this.options.client.desktop(row.sandboxId, tool, next);
       if (tool === "tools/list") this.rememberSchemas(observation);
       return observation;
+    } finally {
+      this.options.db.releaseDesktopLock(row.sandboxId, taskId);
+      this.touch(userId);
+    }
+  }
+
+  /** Chrome in this VM only. The command string is what runs; the host does not launch a browser. */
+  async browserAct(userId: string, taskId: string, request: VmBrowserRequest): Promise<VmBrowserResult> {
+    if (request.op === "goto" || request.op === "fill") {
+      await inspectDestination(request.url, { allowLoopback: false, lookup: this.options.lookup });
+    }
+    if (request.op === "fill") {
+      if (!/^[A-Za-z0-9_-]+$/.test(request.name) || request.text.length > 200) throw new BoatFailure("field is not allowed");
+    }
+    if (request.op === "showFile") workspaceRelative(request.relative);
+    const row = await this.ensure(userId);
+    if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
+    if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 200_000)) {
+      throw new BoatFailure("desktop is in use by another task");
+    }
+    try {
+      await this.guardUsage(row);
+      const prepared = await this.run(userId, vmBrowserPrepareCommand(), 20_000);
+      if (prepared.exitCode !== 0) throw new BoatFailure(prepared.stderr || "vm browser script was not written");
+      await this.run(userId, vmBrowserInstallCommand(), 60_000).catch(() => undefined);
+      const served = await this.run(userId, vmBrowserServeCommand(), 60_000);
+      if (served.exitCode !== 0) throw new BoatFailure(served.stderr || served.stdout || "vm browser did not start");
+      const called = await this.run(userId, vmBrowserCallCommand(request), 50_000);
+      if (called.exitCode !== 0) throw new BoatFailure(called.stderr || called.stdout || "vm browser call failed");
+      return parseVmBrowserResult(called.stdout);
+    } catch (error) {
+      if (error instanceof BoatFailure) throw error;
+      throw new BoatFailure(messageOf(error));
     } finally {
       this.options.db.releaseDesktopLock(row.sandboxId, taskId);
       this.touch(userId);
