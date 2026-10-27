@@ -1,29 +1,35 @@
 /**
  * Runs inside one Boat VM. It never starts on the host.
- * Chrome uses an isolated profile under /home/user/linco and a debugging port on 127.0.0.1.
- * Playwright attaches with connectOverCDP when playwright-core is installed. Otherwise the same Chrome is driven with CDP.
+ * Chrome uses an isolated profile under /home/user/linco.
+ * DevTools stays on the parent pipe. There is no TCP debug port.
+ * Web traffic goes through a loopback proxy that refuses private and metadata addresses.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { lookup } from "node:dns/promises";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createConnection, createServer } from "node:net";
+import http from "node:http";
+import net, { createConnection, createServer } from "node:net";
 
 const PROFILE = "/home/user/linco/.linco/chrome-profile";
 const SOCK = "/home/user/linco/.linco/browser.sock";
-const PORT = 9333;
 const PROOF = "/home/user/linco/proof";
 
 let engine = "starting";
 let semantic = { snapshotId: 0, targetId: "", url: "", title: "", refs: new Map() };
 let pwPage = null;
-let ws = null;
+let chromeChild = null;
+let pipeWrite = null;
+let pipeReadBuf = "";
 let sessionId = "";
 let nextId = 0;
 const pending = new Map();
 let chain = Promise.resolve();
+let egressPort = 0;
 
 function chromeBin() {
-  const bins = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
-  return bins.find((bin) => existsSync(bin)) || "";
+  const real = ["/opt/google/chrome/chrome", "/usr/lib/chromium/chromium", "/usr/lib/chromium-browser/chromium-browser"];
+  const wrappers = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
+  return real.find((bin) => existsSync(bin)) || wrappers.find((bin) => existsSync(bin)) || "";
 }
 
 function sleep(ms) {
@@ -81,34 +87,119 @@ function writeShot(name, buf) {
   return { shot: relative, bytes: buf.length, width: size.width, height: size.height };
 }
 
-async function waitPort() {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${PORT}/json/version`);
-      if (response.ok) return;
-    } catch {
-      /* chrome is still starting */
-    }
-    await sleep(250);
+async function resolvePublic(host) {
+  const name = host.replace(/^\[|\]$/g, "").toLowerCase();
+  if (!name || name === "localhost" || name.endsWith(".local") || name.endsWith(".internal") || isPrivate(name)) {
+    throw new Error("that address is blocked");
   }
-  throw new Error("chrome debugging port did not open on 127.0.0.1");
+  if (net.isIP(name)) return name;
+  const records = await lookup(name, { all: true, verbatim: true });
+  if (records.length === 0) throw new Error("that host did not resolve");
+  for (const record of records) {
+    if (isPrivate(record.address)) throw new Error("that host resolves to a blocked address");
+  }
+  return records[0].address;
+}
+
+function startEgress() {
+  const server = http.createServer((request, response) => {
+    forwardHttp(request, response).catch((error) => {
+      if (response.headersSent) return;
+      response.writeHead(403, { "content-type": "text/plain" });
+      response.end(error instanceof Error ? error.message : "blocked");
+    });
+  });
+  server.on("connect", (request, socket) => {
+    const [host, portText] = String(request.url || "").split(":");
+    resolvePublic(host).then((address) => {
+      const upstream = net.connect(Number(portText || 443), address, () => {
+        socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+        upstream.pipe(socket);
+        socket.pipe(upstream);
+      });
+      upstream.on("error", () => socket.end());
+    }).catch((error) => {
+      const body = error instanceof Error ? error.message : "blocked";
+      socket.write(`HTTP/1.1 403 Forbidden\r\ncontent-type: text/plain\r\ncontent-length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+      socket.end();
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      egressPort = typeof address === "object" && address ? address.port : 0;
+      resolve(egressPort);
+    });
+  });
+}
+
+async function forwardHttp(request, response) {
+  const target = new URL(request.url || "");
+  assertPublic(target.toString());
+  const address = await resolvePublic(target.hostname);
+  await new Promise((resolve, reject) => {
+    const upstream = http.request({
+      host: address,
+      port: target.port || 80,
+      path: `${target.pathname}${target.search}`,
+      method: request.method,
+      headers: { ...request.headers, host: target.host },
+    }, (incoming) => {
+      const location = incoming.headers.location;
+      if (location && incoming.statusCode && incoming.statusCode >= 300 && incoming.statusCode < 400) {
+        try {
+          assertPublic(new URL(location, target).toString());
+        } catch (error) {
+          incoming.resume();
+          reject(error);
+          return;
+        }
+      }
+      response.writeHead(incoming.statusCode || 502, incoming.headers);
+      incoming.pipe(response);
+      incoming.on("end", resolve);
+    });
+    upstream.on("error", reject);
+    request.pipe(upstream);
+  });
+}
+
+function writePipe(json) {
+  pipeWrite.write(`${json}\0`);
+}
+
+function consumePipe(chunk) {
+  pipeReadBuf += chunk.toString("utf8");
+  while (true) {
+    const end = pipeReadBuf.indexOf("\0");
+    if (end < 0) return;
+    const raw = pipeReadBuf.slice(0, end);
+    pipeReadBuf = pipeReadBuf.slice(end + 1);
+    let message;
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (!message.id || !pending.has(message.id)) continue;
+    const waiter = pending.get(message.id);
+    pending.delete(message.id);
+    if (message.error) waiter.reject(new Error(message.error.message || "cdp error"));
+    else waiter.resolve(message.result || {});
+  }
 }
 
 async function ensureChrome() {
-  try {
-    const response = await fetch(`http://127.0.0.1:${PORT}/json/version`);
-    if (response.ok) return;
-  } catch {
-    /* start a new isolated window */
-  }
+  if (chromeChild && !chromeChild.killed) return;
+  if (!egressPort) await startEgress();
   const bin = chromeBin();
   if (!bin) throw new Error("google-chrome is not installed in the VM");
   mkdirSync(PROFILE, { recursive: true });
-  const child = spawn(bin, [
+  chromeChild = spawn(bin, [
     `--user-data-dir=${PROFILE}`,
-    "--remote-debugging-address=127.0.0.1",
-    `--remote-debugging-port=${PORT}`,
-    "--remote-allow-origins=http://127.0.0.1:9333",
+    "--remote-debugging-pipe",
+    `--proxy-server=http://127.0.0.1:${egressPort}`,
+    "--proxy-bypass-list=<-loopback>",
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-dev-shm-usage",
@@ -117,11 +208,16 @@ async function ensureChrome() {
     "about:blank",
   ], {
     env: { ...process.env, DISPLAY: process.env.DISPLAY || ":0" },
-    detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"],
   });
-  child.unref();
-  await waitPort();
+  pipeWrite = chromeChild.stdio[3];
+  chromeChild.stdio[4].on("data", consumePipe);
+  chromeChild.stderr.on("data", (chunk) => process.stderr.write(chunk));
+  chromeChild.on("exit", () => {
+    chromeChild = null;
+    pipeWrite = null;
+  });
+  await cdp("Browser.getVersion", {});
 }
 
 async function loadPlaywright() {
@@ -160,27 +256,15 @@ function cdp(method, params, session) {
     });
     const message = { id, method, params: params || {} };
     if (session) message.sessionId = session;
-    ws.send(JSON.stringify(message));
+    writePipe(JSON.stringify(message));
   });
 }
 
 async function cdpAttach() {
-  const version = await fetch(`http://127.0.0.1:${PORT}/json/version`).then((response) => response.json());
-  ws = new WebSocket(version.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => {
-    ws.addEventListener("open", resolve);
-    ws.addEventListener("error", () => reject(new Error("cdp websocket failed")));
-  });
-  ws.addEventListener("message", (event) => {
-    const message = JSON.parse(event.data);
-    if (!message.id || !pending.has(message.id)) return;
-    const waiter = pending.get(message.id);
-    pending.delete(message.id);
-    if (message.error) waiter.reject(new Error(message.error.message || "cdp error"));
-    else waiter.resolve(message.result || {});
-  });
-  const created = await cdp("Target.createTarget", { url: "about:blank" });
-  const attached = await cdp("Target.attachToTarget", { targetId: created.targetId, flatten: true });
+  const targets = await cdp("Target.getTargets", {});
+  const page = (targets.targetInfos || []).find((item) => item.type === "page");
+  const targetId = page?.targetId || (await cdp("Target.createTarget", { url: "about:blank" })).targetId;
+  const attached = await cdp("Target.attachToTarget", { targetId, flatten: true });
   sessionId = attached.sessionId;
   await cdp("Page.enable", {}, sessionId);
   await cdp("Runtime.enable", {}, sessionId);
@@ -188,15 +272,6 @@ async function cdpAttach() {
 }
 
 async function connectEngine() {
-  const playwright = await loadPlaywright();
-  if (playwright?.chromium) {
-    const browser = await playwright.chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
-    const context = browser.contexts()[0];
-    const pages = context.pages();
-    pwPage = pages[0] || (await context.newPage());
-    engine = "playwright";
-    return;
-  }
   await cdpAttach();
 }
 
@@ -308,43 +383,16 @@ const USEFUL = new Set(["button", "link", "textbox", "searchbox", "checkbox", "r
 const TAKEOVER = /\b(captcha|mfa|2fa|one[- ]time|password|passkey|verify you are human|doğrulama kodu|şifre)\b/i;
 
 async function pageSocket() {
-  const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
-  const page = pages.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
+  const targets = await cdp("Target.getTargets", {});
+  const page = (targets.targetInfos || []).find((item) => item.type === "page" && item.url !== "about:blank")
+    || (targets.targetInfos || []).find((item) => item.type === "page");
   if (!page) throw new Error("no debuggable browser page");
-  const socket = new WebSocket(page.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => {
-    socket.addEventListener("open", resolve, { once: true });
-    socket.addEventListener("error", () => reject(new Error("DevTools connection failed")), { once: true });
-  });
-  let next = 0;
-  const pending = new Map();
-  socket.addEventListener("message", (event) => {
-    const message = JSON.parse(String(event.data));
-    const waiter = pending.get(message.id);
-    if (!waiter) return;
-    pending.delete(message.id);
-    if (message.error) waiter.reject(new Error(message.error.message || "cdp error"));
-    else waiter.resolve(message.result || {});
-  });
-  const send = (method, params = {}) => new Promise((resolve, reject) => {
-    const id = ++next;
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error(`cdp timeout ${method}`));
-    }, 15_000);
-    pending.set(id, {
-      resolve: (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      reject: (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    });
-    socket.send(JSON.stringify({ id, method, params }));
-  });
-  return { page, send, close: () => socket.close() };
+  const attached = await cdp("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+  return {
+    page: { id: page.targetId, url: page.url, title: page.title },
+    send: (method, params = {}) => cdp(method, params, attached.sessionId),
+    close: () => undefined,
+  };
 }
 
 async function takeSnapshot() {
@@ -391,6 +439,16 @@ function requireRef(payload) {
   return semantic.refs.get(payload.ref);
 }
 
+async function listPages() {
+  const targets = await cdp("Target.getTargets", {});
+  return (targets.targetInfos || []).filter((item) => item.type === "page").map((item) => ({
+    id: item.targetId,
+    type: "page",
+    url: item.url,
+    title: item.title,
+  }));
+}
+
 async function semanticClick(payload) {
   const backend = requireRef(payload);
   const before = semantic.url;
@@ -411,7 +469,7 @@ async function semanticClick(payload) {
   }
   for (let attempt = 0; attempt < 12; attempt += 1) {
     await sleep(250);
-    const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
+    const pages = await listPages();
     const page = pages.find((item) => item.id === semantic.targetId) ?? pages.find((item) => item.type === "page");
     if (page?.url && page.url !== before && page.url !== "about:blank") break;
   }
@@ -463,7 +521,7 @@ async function waitForPage(raw) {
   const expected = new URL(raw);
   let last = null;
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const pages = await fetch(`http://127.0.0.1:${PORT}/json/list`).then((response) => response.json());
+    const pages = await listPages();
     const page = pages.find((item) => item.type === "page" && item.url && item.url !== "about:blank");
     if (page?.url) {
       assertPublic(page.url);

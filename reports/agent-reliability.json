@@ -1,0 +1,359 @@
+{
+  "createdAt": "2026-10-27T22:36:44.021Z",
+  "startedFrom": "8683678",
+  "mode": "live",
+  "performanceClaim": "none",
+  "publicReady": false,
+  "liveExecuted": true,
+  "liveReason": "Railway variables were injected for this process. Values were not written to the report.",
+  "sandboxId": "bx_thha4kef",
+  "deleted": true,
+  "rows": [
+    {
+      "name": "metadata url",
+      "mode": "security",
+      "category": "network",
+      "ok": true,
+      "status": "tool",
+      "evidence": "that host is blocked"
+    },
+    {
+      "name": "metadata redirect",
+      "mode": "security",
+      "category": "network",
+      "ok": false,
+      "status": "tool",
+      "evidence": "https://httpbin.org/redirect-to?url=http://169.254.169.254/latest/meta-data/"
+    },
+    {
+      "name": "cdp tcp 9333",
+      "mode": "security",
+      "category": "cdp",
+      "ok": true,
+      "status": "tool",
+      "evidence": "000 port 9333 closed"
+    },
+    {
+      "name": "same user socket",
+      "mode": "security",
+      "category": "cdp",
+      "ok": false,
+      "status": "tool",
+      "evidence": "1000 user srwxr-xr-x 1 user user 0 Oct 27 22:36 /home/user/linco/.linco/browser.sock"
+    },
+    {
+      "name": "controlled open",
+      "mode": "controlled",
+      "category": "browser",
+      "ok": true,
+      "status": "tool",
+      "evidence": "title Example Domain; url https://example.com/"
+    },
+    {
+      "name": "click 1",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 1",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools desktop_state"
+    },
+    {
+      "name": "form 1",
+      "mode": "language",
+      "category": "form",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools vm_browser_goto,browser_navigate,browser_fill,browser_click"
+    },
+    {
+      "name": "code 1",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "subagents 1",
+      "mode": "language",
+      "category": "subagents",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools task_spawn,task_spawn,task_wait,task_wait; children succeeded,succeeded"
+    },
+    {
+      "name": "click 2",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 2",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "form 2",
+      "mode": "language",
+      "category": "form",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_fill,browser_snapshot,browser_click"
+    },
+    {
+      "name": "code 2",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "subagents 2",
+      "mode": "language",
+      "category": "subagents",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools task_spawn,task_spawn,task_wait,task_wait; children succeeded,succeeded"
+    },
+    {
+      "name": "click 3",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 3",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "form 3",
+      "mode": "language",
+      "category": "form",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_fill,browser_click"
+    },
+    {
+      "name": "code 3",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "subagents 3",
+      "mode": "language",
+      "category": "subagents",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools task_spawn,task_spawn,task_wait,task_wait; children succeeded,succeeded"
+    },
+    {
+      "name": "click 4",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 4",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "form 4",
+      "mode": "language",
+      "category": "form",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_fill,browser_click"
+    },
+    {
+      "name": "code 4",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "subagents 4",
+      "mode": "language",
+      "category": "subagents",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools task_spawn,task_spawn,task_wait,task_wait; children succeeded,succeeded"
+    },
+    {
+      "name": "click 5",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 5",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "form 5",
+      "mode": "language",
+      "category": "form",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_fill,browser_click"
+    },
+    {
+      "name": "code 5",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "subagents 5",
+      "mode": "language",
+      "category": "subagents",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools task_spawn,task_spawn,task_wait,task_wait; children succeeded,succeeded"
+    },
+    {
+      "name": "click 6",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 6",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "click 7",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 7",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "click 8",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 8",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "click 9",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 9",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    },
+    {
+      "name": "click 10",
+      "mode": "language",
+      "category": "click",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools browser_navigate,browser_click; url https://www.iana.org/help/example-domains"
+    },
+    {
+      "name": "desktop 10",
+      "mode": "language",
+      "category": "desktop",
+      "ok": false,
+      "status": "failed",
+      "evidence": "status failed; tools none"
+    }
+  ],
+  "rates": {
+    "browser": "1/1",
+    "click": "10/10",
+    "desktop": "0/10",
+    "form": "5/5",
+    "code": "0/5",
+    "subagents": "5/5",
+    "network": "1/2",
+    "cdp": "1/2"
+  },
+  "blockers": [
+    "The redirect left the page on the public redirect URL. The metadata address was not observed, and Chrome did not return an explicit refusal. That is not a verified block.",
+    "The shell and Chrome share uid 1000. The same user can still open the control socket or start its own Chrome. Loopback TCP 9333 is closed; that does not make the browser a separate trust domain. Public use is NO-GO.",
+    "The egress proxy pins the first DNS answer for proxied requests. It does not prove every subresource and does not re-check DNS after a TTL change."
+  ],
+  "totals": {
+    "durationMs": 355303,
+    "deepseekUsd": 0.055906,
+    "boatUsd": 0.00175
+  },
+  "notes": [
+    "A row is successful only when the action and an independent read agree. The model status is recorded and is not the proof.",
+    "A follow-up on bx_68aqt37m added an action hint. Desktop calls then failed in a loop and the tasks were still running at the observation limit. Code tasks only called fs_read on a missing file and finished failed. Those rows are not in the rates above. The hint was removed; the contract remains.",
+    "The live runner approves Boat tool calls so the matrix can finish. That approval is not the production user prompt.",
+    "Public use stays NO-GO while a blocker remains."
+  ]
+}

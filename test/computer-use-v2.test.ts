@@ -15,12 +15,13 @@ describe("boat vm browser", () => {
   it("keeps the Chrome profile inside the VM and off the host", () => {
     const script = vmBrowserScript();
     expect(script).toContain("playwright-core");
-    expect(script).toContain("connectOverCDP");
+    expect(script).toContain("Accessibility.getFullAXTree");
+    expect(script).not.toContain("connectOverCDP");
     expect(script).toContain("/home/user/linco/.linco/chrome-profile");
-    expect(script).toContain("127.0.0.1");
-    expect(script).not.toContain("--headless");
-    expect(script).toContain("--remote-allow-origins=http://127.0.0.1:9333");
-    expect(script).not.toContain("--remote-allow-origins=*");
+    expect(script).toContain("--remote-debugging-pipe");
+    expect(script).toContain("--proxy-server=");
+    expect(script).not.toContain("--remote-debugging-port");
+    expect(script).not.toContain("--remote-allow-origins");
     expect(script).toContain("Accessibility.getFullAXTree");
     expect(script).toContain("that snapshot is stale");
     expect(script).not.toContain("/Users");

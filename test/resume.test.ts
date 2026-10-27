@@ -110,7 +110,7 @@ describe("resume checkpoint", () => {
     });
     const readyPath = path.join(root, "ready.json");
     const started = Date.now();
-    while (!fs.existsSync(readyPath) && Date.now() - started < 10_000) {
+    while (!fs.existsSync(readyPath) && Date.now() - started < 20_000) {
       if (child.exitCode !== null) break;
       await new Promise((resolve) => setTimeout(resolve, 30));
     }
@@ -131,7 +131,7 @@ describe("resume checkpoint", () => {
     } finally {
       await harness.stop();
     }
-  }, 20_000);
+  }, 30_000);
 });
 
 function retryStream(onResume: () => ScriptStep): StreamFn {

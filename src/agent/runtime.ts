@@ -19,6 +19,7 @@ import { BoatSandboxManager } from "../boat/manager.js";
 import { modelAcceptsImages } from "../boat/vision.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
+import { contractForPrompt, missingEvidence } from "./evidence.js";
 import { recoveryDecision } from "./lease.js";
 import { routeExecution, type ToolProfile } from "./route.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
@@ -513,49 +514,67 @@ export class Harness {
             })),
           });
       const owns = () => this.db.holdsLease(task.id, task.fence, workerId);
-      if (resumeChildren) await agent.continue();
-      else await agent.prompt(prompt);
-      if (!owns()) return;
-      this.persist(agent, session.id, task.prompt, claim);
-      if (abort.signal.aborted) {
-        if (owns()) {
-          this.cancelFamily(task.id);
-          this.db.finishTask(task.id, "cancelled", { error: "cancelled", firstResponseMs: run.firstResponseMs }, claim);
-        }
-        return;
-      }
-      if (waiting.size > 0) {
-        const parked = this.db.markWaitingChildren(task.id, [...waiting], run.firstResponseMs, claim);
-        if (parked) {
-          this.db.addTrace({
-            taskId: task.id,
-            kind: "orchestration",
-            name: "waiting_children",
-            startedAt: new Date().toISOString(),
-            endedAt: new Date().toISOString(),
-            data: { childIds: [...waiting] },
-            claim,
-          });
-          this.db.wakeParent(task.id);
+      let feedback = "";
+      for (let round = 0; round < 2; round += 1) {
+        if (round === 0) {
+          if (resumeChildren) await agent.continue();
+          else await agent.prompt(prompt);
+        } else await agent.prompt(feedback);
+        if (!owns()) return;
+        this.persist(agent, session.id, task.prompt, claim);
+        if (abort.signal.aborted) {
+          if (owns()) {
+            this.cancelFamily(task.id);
+            this.db.finishTask(task.id, "cancelled", { error: "cancelled", firstResponseMs: run.firstResponseMs }, claim);
+          }
           return;
         }
-      }
-      if (run.waitingApproval) {
-        if (this.db.markPaused(task.id, run.firstResponseMs, claim)) {
-          this.notify(task, "Onay bekleniyor", "Bir araç kullanıcı onayı olmadan çalışmadı.");
+        if (waiting.size > 0) {
+          const parked = this.db.markWaitingChildren(task.id, [...waiting], run.firstResponseMs, claim);
+          if (parked) {
+            this.db.addTrace({
+              taskId: task.id,
+              kind: "orchestration",
+              name: "waiting_children",
+              startedAt: new Date().toISOString(),
+              endedAt: new Date().toISOString(),
+              data: { childIds: [...waiting] },
+              claim,
+            });
+            this.db.wakeParent(task.id);
+            return;
+          }
         }
-        return;
-      }
-      if (agent.state.errorMessage) throw new Error(agent.state.errorMessage);
-      const result = lastAssistantText(agent.state.messages);
-      const unmet = goalSuccessBlock(this.db.getTask(task.id)?.goal ?? null);
-      if (unmet) {
-        this.db.finishTask(task.id, "failed", { error: unmet, resultText: result, firstResponseMs: run.firstResponseMs }, claim);
-        return;
-      }
-      const finished = this.db.finishTask(task.id, "succeeded", { resultText: result, firstResponseMs: run.firstResponseMs }, claim);
-      if (finished && (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook")) {
-        this.notify(task, "Görev bitti", result || task.prompt);
+        if (run.waitingApproval) {
+          if (this.db.markPaused(task.id, run.firstResponseMs, claim)) {
+            this.notify(task, "Onay bekleniyor", "Bir araç kullanıcı onayı olmadan çalışmadı.");
+          }
+          return;
+        }
+        if (agent.state.errorMessage) throw new Error(agent.state.errorMessage);
+        const result = lastAssistantText(agent.state.messages);
+        const unmet = goalSuccessBlock(this.db.getTask(task.id)?.goal ?? null);
+        if (unmet) {
+          this.db.finishTask(task.id, "failed", { error: unmet, resultText: result, firstResponseMs: run.firstResponseMs }, claim);
+          return;
+        }
+        const gap = await this.evidenceGap(task, host, agent.state.messages);
+        if (!gap) {
+          const finished = this.db.finishTask(task.id, "succeeded", { resultText: result, firstResponseMs: run.firstResponseMs }, claim);
+          if (finished && (task.kind === "cron" || task.kind === "heartbeat" || task.kind === "webhook")) {
+            this.notify(task, "Görev bitti", result || task.prompt);
+          }
+          return;
+        }
+        if (gap.uncertain) {
+          this.db.finishTask(task.id, "needs_inspection", { error: gap.missing, resultText: result, firstResponseMs: run.firstResponseMs }, claim);
+          return;
+        }
+        if (!gap.retry || round === 1) {
+          this.db.finishTask(task.id, "failed", { error: gap.missing, resultText: result, firstResponseMs: run.firstResponseMs }, claim);
+          return;
+        }
+        feedback = `Evidence is missing. ${gap.missing} Do this once. Do not repeat an action that already succeeded.`;
       }
     } catch (caught) {
       if (!this.db.holdsLease(task.id, task.fence, workerId)) return;
@@ -583,11 +602,54 @@ export class Harness {
     }
   }
 
+  private async evidenceGap(task: Task, host: ToolHost, messages: AgentMessage[]): Promise<{ missing: string; uncertain: boolean; retry: boolean } | null> {
+    const contract = contractForPrompt(task.prompt);
+    if (!contract) return null;
+    const tools = this.db.listTraces(task.id).flatMap((trace) => {
+      if (trace.kind !== "tool") return [];
+      const data = trace.data as { phase?: string; isError?: boolean };
+      if (data.phase !== "end") return [];
+      return [{ name: trace.name, isError: data.isError === true }];
+    });
+    let pageUrl = "";
+    let pageTitle = "";
+    let pageText = "";
+    if (contract.kind.startsWith("browser") && host.vmBrowser) {
+      try {
+        const page = await host.vmBrowser.act({ op: "read" });
+        pageUrl = page.url ?? "";
+        pageTitle = page.title ?? "";
+        pageText = page.text ?? "";
+      } catch (error) {
+        pageText = error instanceof Error ? error.message : String(error);
+      }
+    }
+    let fileText = "";
+    let fileError = "";
+    if (contract.file && host.files) {
+      try {
+        fileText = (await host.files.read(contract.file)).text;
+      } catch (error) {
+        fileError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    const outputs = messages.flatMap((message) => {
+      const record = message as { role?: string; content?: unknown };
+      if (record.role === "assistant" || record.role === "user") return [];
+      return [JSON.stringify(record.content ?? "").slice(0, 2000)];
+    });
+    const children = contract.kind === "subagents" ? this.db.listChildren(task.id).map((child) => ({ status: child.status })) : undefined;
+    return missingEvidence(contract, { tools, pageUrl, pageTitle, pageText, fileText, fileError, outputs, children });
+  }
+
   private gate(host: ToolHost, context: BeforeToolCallContext, claim: TaskClaim) {
     if (!this.db.holdsLease(claim.taskId, claim.fence, claim.workerId)) {
       return { block: true, terminate: true, reason: "worker lease is no longer held" };
     }
-    const assessment = assess(context.toolCall.name, context.args, host.workspaceRoot);
+    const boatMutation = host.desktop && (context.toolCall.name === "browser_click" || context.toolCall.name === "browser_fill" || context.toolCall.name === "browser_select");
+    const assessment = boatMutation
+      ? { action: "approve" as const, risk: "network" as const, reason: "Changing the Boat page needs user approval." }
+      : assess(context.toolCall.name, context.args, host.workspaceRoot);
     if (assessment.action === "allow") return undefined;
     if (assessment.action === "deny") return { block: true, reason: assessment.reason };
     const hash = approvalHash(context.toolCall.name, context.args);

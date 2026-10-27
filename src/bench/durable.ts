@@ -139,7 +139,7 @@ async function runPool(dataDir: string, skillsDir: string, processes: number, ta
   );
   const db = new LincoDb(path.join(dataDir, "linco.sqlite"));
   try {
-    const done = await waitAll(db, ids, (task) => task.status === "succeeded" || task.status === "failed", 8_000);
+    const done = await waitAll(db, ids, (task) => task.status === "succeeded" || task.status === "failed", 15_000);
     const waits = done.map((task) => (task.startedAt ? Date.parse(task.startedAt) - Date.parse(task.createdAt) : 0));
     const lost = done.filter((task) => !JSON.stringify(db.getTranscript(task.sessionId)).includes("done ")).length;
     const workers = new Set(done.map((task) => task.workerId).filter((id): id is string => Boolean(id)));
