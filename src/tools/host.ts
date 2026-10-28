@@ -15,6 +15,7 @@ export interface DesktopBridge {
   call(tool: string, args: Record<string, unknown>): Promise<DesktopObservation>;
   schema?: (name: string) => DriverSchema | undefined;
   sequence?: (steps: Array<{ tool: string; args: Record<string, unknown> }>) => Promise<Array<{ tool: string; ok: boolean; detail: string }>>;
+  editFile?: (relativePath: string, text: string) => Promise<{ ok: boolean; detail: string; calls: string[] }>;
 }
 
 export interface ToolHost {

@@ -96,6 +96,7 @@ export async function typeIntoEditor(driver: DriverCaller, filePath: string, tex
     let launched = "";
     const basename = filePath.split("/").pop() ?? "";
     let ids: { pid?: number; windowId?: number } = {};
+    let firstError = "";
     try {
       const beforeIds = new Set(readWindows((await run(driver, calls, "list_windows", {})).text).map((window) => window.windowId));
       await run(driver, calls, "launch_app", {
@@ -107,7 +108,12 @@ export async function typeIntoEditor(driver: DriverCaller, filePath: string, tex
       const opened = pickEditorWindow(beforeIds, readWindows((await run(driver, calls, "list_windows", {})).text), basename);
       if (opened?.pid) ids = { pid: opened.pid, windowId: opened.windowId };
     } catch (error) {
-      launched = message(error);
+      firstError = message(error);
+      launched = firstError;
+    }
+    if (!ids.pid || !ids.windowId) {
+      const existing = pickEditorWindow(new Set(), readWindows((await run(driver, calls, "list_windows", {})).text), basename);
+      if (existing?.pid && existing.windowId) ids = { pid: existing.pid, windowId: existing.windowId };
     }
     if (!ids.pid || !ids.windowId) {
       const attempt = await launchFirst(driver, calls, pickApps(catalog, editorPattern, EDITOR_FALLBACK), [filePath]);
@@ -116,7 +122,7 @@ export async function typeIntoEditor(driver: DriverCaller, filePath: string, tex
       const title = readWindows((await run(driver, calls, "list_windows", {})).text).find((window) => window.windowId === found.windowId)?.title ?? "";
       if (found.pid && found.windowId && (!basename || title.includes(basename) || !title)) ids = found;
     }
-    if (!ids.pid || !ids.windowId) return done(false, "wrong-window", clip(`${launched || "text editor was not found"} catalog ${catalog}`), calls, retries);
+    if (!ids.pid || !ids.windowId) return done(false, "wrong-window", clip(`${firstError || launched || "text editor was not found"} catalog ${catalog}`), calls, retries);
     await run(driver, calls, "bring_to_front", { pid: ids.pid, window_id: ids.windowId });
     const state = await run(driver, calls, "get_window_state", { pid: ids.pid, window_id: ids.windowId, include_screenshot: false });
     const center = readCenter(state.text) ?? { x: 640, y: 420 };
@@ -131,7 +137,9 @@ export async function typeIntoEditor(driver: DriverCaller, filePath: string, tex
       element_token: token,
       delivery_mode: "foreground",
     });
+    await sleep(700);
     await save(driver, calls, ids, /nano|terminal/i.test(`${state.text} ${launched}`));
+    await sleep(400);
     const saved = calls.includes("hotkey") || calls.includes("press_key");
     return {
       ok: calls.includes("click") && calls.includes("type_text") && saved,

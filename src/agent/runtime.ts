@@ -405,6 +405,20 @@ export class Harness {
       };
       const tools = toolsForPrompt(host, session.systemPrompt);
       const budget = { turns: 0 };
+      this.db.addTrace({
+        taskId: task.id,
+        kind: "model",
+        name: "tools",
+        startedAt: new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        claim,
+        data: {
+          names: tools.map((tool) => tool.name),
+          profile: host.toolProfile ?? "agent",
+          maxTurns: this.config.maxTurns,
+          priorMessages: transcript.length,
+        },
+      });
       agent = new Agent({
         initialState: {
           model: llm.model,
@@ -460,6 +474,21 @@ export class Harness {
         }
         if (event.type === "message_end" && event.message.role === "assistant" && "usage" in event.message) {
           const usage = event.message.usage;
+          const content = Array.isArray(event.message.content) ? event.message.content : [];
+          const calls = content.flatMap((part) => (part && typeof part === "object" && "type" in part && part.type === "toolCall" && "name" in part ? [String(part.name)] : []));
+          this.db.addTrace({
+            taskId: task.id,
+            kind: "model",
+            name: "turn",
+            startedAt: new Date().toISOString(),
+            endedAt: new Date().toISOString(),
+            claim,
+            data: {
+              stopReason: "stopReason" in event.message ? event.message.stopReason : "",
+              calls,
+              turns: budget.turns,
+            },
+          });
           this.db.addUsage({
             taskId: task.id,
             turnIndex: run.turn,
@@ -479,7 +508,7 @@ export class Harness {
             kind: "tool",
             name: event.toolName,
             startedAt: at,
-            data: { phase: "start", toolCallId: event.toolCallId },
+            data: { phase: "start", toolCallId: event.toolCallId, args: argNote(event.args) },
             claim,
           });
         }
@@ -498,6 +527,7 @@ export class Harness {
               toolCallId: event.toolCallId,
               isError: event.isError,
               durationMs: event.durationMs ?? null,
+              result: resultNote(event.result),
               ...(goalStepId ? { goalStepId } : {}),
             },
           });
@@ -575,6 +605,17 @@ export class Harness {
           return;
         }
         feedback = `Evidence is missing. ${gap.missing} Do this once. Do not repeat an action that already succeeded.`;
+        const correctionTurns = budget.turns;
+        this.db.addTrace({
+          taskId: task.id,
+          kind: "model",
+          name: "correction",
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          claim,
+          data: { feedback, turns: correctionTurns, maxTurns: this.config.maxTurns, starved: correctionTurns >= this.config.maxTurns },
+        });
+        budget.turns = 0;
       }
     } catch (caught) {
       if (!this.db.holdsLease(task.id, task.fence, workerId)) return;
@@ -605,11 +646,17 @@ export class Harness {
   private async evidenceGap(task: Task, host: ToolHost, messages: AgentMessage[]): Promise<{ missing: string; uncertain: boolean; retry: boolean } | null> {
     const contract = contractForPrompt(task.prompt);
     if (!contract) return null;
-    const tools = this.db.listTraces(task.id).flatMap((trace) => {
+    const traces = this.db.listTraces(task.id);
+    const tools = traces.flatMap((trace) => {
       if (trace.kind !== "tool") return [];
-      const data = trace.data as { phase?: string; isError?: boolean };
+      const data = trace.data as { phase?: string; isError?: boolean; result?: string; toolCallId?: string };
       if (data.phase !== "end") return [];
-      return [{ name: trace.name, isError: data.isError === true }];
+      const start = traces.find((item) => {
+        const prior = item.data as { phase?: string; toolCallId?: string; args?: string };
+        return item.kind === "tool" && item.name === trace.name && prior.phase === "start" && prior.toolCallId === data.toolCallId;
+      });
+      const args = (start?.data as { args?: string } | undefined)?.args ?? "";
+      return [{ name: trace.name, isError: data.isError === true, args, result: data.result ?? "" }];
     });
     let pageUrl = "";
     let pageTitle = "";
@@ -697,6 +744,21 @@ export class Harness {
     if (!task) throw new Error(`unknown task ${taskId}`);
     return task;
   }
+}
+
+function argNote(args: unknown): string {
+  if (!args || typeof args !== "object") return "";
+  const record = args as Record<string, unknown>;
+  const parts = ["path", "command", "source", "text", "app"].flatMap((key) => {
+    const value = record[key];
+    return typeof value === "string" && value ? [`${key}=${value.slice(0, 80)}`] : [];
+  });
+  return parts.join(" ").slice(0, 180);
+}
+
+function resultNote(result: unknown): string {
+  const raw = typeof result === "string" ? result : JSON.stringify(result ?? "");
+  return raw.replace(/\s+/g, " ").slice(0, 240);
 }
 
 function sleep(ms: number): Promise<void> {

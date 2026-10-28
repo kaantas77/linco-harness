@@ -1,0 +1,394 @@
+{
+  "createdAt": "2026-10-28T09:05:45.202Z",
+  "startedFrom": "aee60fc",
+  "mode": "live",
+  "performanceClaim": "none",
+  "publicReady": false,
+  "liveExecuted": true,
+  "sandboxId": "bx_av5296mb",
+  "phraseSandboxId": "bx_hk45dneg",
+  "diagnosisSandboxId": "bx_kvp7mkx3",
+  "deleted": true,
+  "rows": [
+    {
+      "name": "controlled desktop",
+      "mode": "controlled",
+      "category": "desktop",
+      "ok": true,
+      "status": "tool",
+      "evidence": "calls tools/list,list_apps,list_windows,launch_app,list_windows,bring_to_front,get_window_state,click,type_text,hotkey,press_key; read back the text; cat exit 0 PHASE106-CONTROL-DESK"
+    },
+    {
+      "name": "controlled code",
+      "mode": "controlled",
+      "category": "code",
+      "ok": true,
+      "status": "tool",
+      "evidence": "{\"content\":[{\"type\":\"text\",\"text\":\"exit 0\\nPHASE106-CONTROL-RUN\\n\"}],\"details\":{\"exitCode\":0,\"path\":\"proof/controlled-code.mjs\"}}"
+    },
+    {
+      "name": "desktop 1",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-1"
+    },
+    {
+      "name": "desktop 2",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-2"
+    },
+    {
+      "name": "desktop 3",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-3"
+    },
+    {
+      "name": "desktop 4",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,desktop_state,fs_read; cat exit 0 PHASE106-TYPE-4"
+    },
+    {
+      "name": "desktop 5",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools fs_list,desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-5"
+    },
+    {
+      "name": "desktop 6",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools fs_list,fs_list,desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-6"
+    },
+    {
+      "name": "desktop 7",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-7"
+    },
+    {
+      "name": "desktop 8",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-8"
+    },
+    {
+      "name": "desktop 9",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-9"
+    },
+    {
+      "name": "desktop 10",
+      "mode": "language",
+      "category": "desktop",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-TYPE-10"
+    },
+    {
+      "name": "code 1",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 2",
+      "mode": "language",
+      "category": "code",
+      "ok": false,
+      "status": "failed",
+      "evidence": "tools fs_write,shell_exec; source and stdout have the token"
+    },
+    {
+      "name": "code 3",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 4",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 5",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 6",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 7",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 8",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 9",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code 10",
+      "mode": "language",
+      "category": "code",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code phrase 1",
+      "mode": "language",
+      "category": "code-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code phrase 2",
+      "mode": "language",
+      "category": "code-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools fs_list,fs_list,fs_read,code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code phrase 3",
+      "mode": "language",
+      "category": "code-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code phrase 4",
+      "mode": "language",
+      "category": "code-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "code phrase 5",
+      "mode": "language",
+      "category": "code-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools code_write_run; source and stdout have the token"
+    },
+    {
+      "name": "desktop phrase 1",
+      "mode": "language",
+      "category": "desktop-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_state,desktop_edit_file,shell_exec; cat exit 0 PHASE106-PHRASE-D-1"
+    },
+    {
+      "name": "desktop phrase 2",
+      "mode": "language",
+      "category": "desktop-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-PHRASE-D-2"
+    },
+    {
+      "name": "desktop phrase 3",
+      "mode": "language",
+      "category": "desktop-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-PHRASE-D-3"
+    },
+    {
+      "name": "desktop phrase 4",
+      "mode": "language",
+      "category": "desktop-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools desktop_edit_file,fs_read; cat exit 0 PHASE106-PHRASE-D-4"
+    },
+    {
+      "name": "desktop phrase 5",
+      "mode": "language",
+      "category": "desktop-phrase",
+      "ok": true,
+      "status": "succeeded",
+      "evidence": "tools fs_list,fs_list,desktop_edit_file,fs_read; cat exit 0 PHASE106-PHRASE-D-5"
+    }
+  ],
+  "rates": {
+    "desktop": "10/10",
+    "code": "9/10",
+    "desktop-phrase": "5/5",
+    "code-phrase": "5/5"
+  },
+  "totals": {
+    "matrix": {
+      "durationMs": 343153,
+      "deepseekUsd": 0.026415,
+      "boatUsd": 0.0017
+    },
+    "phrases": {
+      "durationMs": 115829,
+      "deepseekUsd": 0.006904,
+      "boatUsd": 0.00056
+    },
+    "diagnosis": {
+      "durationMs": 216866,
+      "deepseekUsd": 0.045048,
+      "boatUsd": 0.00106
+    }
+  },
+  "diagnosis": [
+    {
+      "name": "desktop fresh",
+      "session": "fresh",
+      "status": "failed",
+      "priorMessages": 0,
+      "offered": [
+        "fs_read",
+        "desktop_state",
+        "desktop_tree",
+        "desktop_screenshot",
+        "desktop_click",
+        "desktop_type",
+        "desktop_window",
+        "desktop_batch",
+        "desktop_browser"
+      ],
+      "firstStop": "toolUse",
+      "correction": {
+        "sent": true,
+        "starved": false,
+        "turns": 3
+      },
+      "toolErrors": [
+        "fs_read: {\"content\":[{\"type\":\"text\",\"text\":\"path escapes workspace: /home/user/linco\"}],\"details\":{},\"isError\":true}",
+        "desktop_window: {\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}",
+        "desktop_batch: {\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}",
+        "desktop_batch: {\"content\":[{\"type\":\"text\",\"text\":\"failed click: boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\"
+      ]
+    },
+    {
+      "name": "code fresh",
+      "session": "fresh",
+      "status": "succeeded",
+      "priorMessages": 0,
+      "offered": [
+        "fs_list",
+        "fs_read",
+        "fs_write",
+        "fs_edit",
+        "shell_exec",
+        "code_run"
+      ],
+      "firstStop": "toolUse",
+      "correction": null,
+      "toolErrors": []
+    },
+    {
+      "name": "desktop same",
+      "session": "same",
+      "status": "running",
+      "priorMessages": 87,
+      "offered": [
+        "fs_read",
+        "desktop_state",
+        "desktop_tree",
+        "desktop_screenshot",
+        "desktop_click",
+        "desktop_type",
+        "desktop_window",
+        "desktop_batch",
+        "desktop_browser"
+      ],
+      "firstStop": "toolUse",
+      "correction": {
+        "sent": true,
+        "starved": false,
+        "turns": 4
+      },
+      "toolErrors": [
+        "desktop_click: {\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}",
+        "desktop_click: {\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; us",
+        "shell_exec: {\"content\":[{\"type\":\"text\",\"text\":\"Command references a path outside the workspace.\"}],\"details\":{}}",
+        "shell_exec: {\"content\":[{\"type\":\"text\",\"text\":\"Command references a path outside the workspace.\"}],\"details\":{}}"
+      ]
+    },
+    {
+      "name": "code same",
+      "session": "same",
+      "status": "succeeded",
+      "priorMessages": 7,
+      "offered": [
+        "fs_list",
+        "fs_read",
+        "fs_write",
+        "fs_edit",
+        "shell_exec",
+        "code_run"
+      ],
+      "firstStop": "toolUse",
+      "correction": null,
+      "toolErrors": []
+    }
+  ],
+  "notes": [
+    "Diagnosis bx_kvp7mkx3 compared a fresh session with the same session before desktop_edit_file was in the running process. Desktop tools were offered. The model called them. Clicks failed without a window id. Typing failed with pid 0. The correction was sent and was not starved. Code in a fresh session called fs_write and shell_exec, exited 0, and printed the token.",
+    "The published desktop and code rows are from bx_av5296mb. The published desktop phrases are from bx_hk45dneg, after a failed desktop_edit_file still receives one correction that names the path and the text.",
+    "A language row counts only when the tool trace and an independent file or stdout read agree. The model status is not the proof.",
+    "The live runner approves Boat tool calls so the matrix can finish. That approval is not the production user prompt.",
+    "Public use stays NO-GO. The shell can still open browser.sock, and a metadata redirect is not a verified refusal."
+  ]
+}

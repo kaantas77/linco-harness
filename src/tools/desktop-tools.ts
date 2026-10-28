@@ -11,11 +11,26 @@ export function desktopTools(host: ToolHost): AgentTool[] {
   const desktop = host.desktop;
   if (!desktop) return [];
   const call = (tool: string, args: Record<string, unknown>) => desktop.call(tool, args);
+  const editFile = defineTool<{ path: string; text: string }>({
+    name: "desktop_edit_file",
+    label: "Desktop edit file",
+    description: "Open a new file in the desktop editor, type the text, save it, and read the file back. The tool fails unless that read contains the text. Use this to write a file on the desktop. Needs user approval.",
+    parameters: Type.Object({ path: Type.String(), text: Type.String() }),
+    executionMode: "sequential",
+    execute: async (_id, params) =>
+      guard(async () => {
+        if (!desktop.editFile) return error("desktop edit is unavailable");
+        const saved = await desktop.editFile(params.path, params.text);
+        if (!saved.ok) return error(saved.detail);
+        return text(saved.detail);
+      }),
+  });
   return [
+    editFile,
     defineTool<Record<string, never>>({
       name: "desktop_state",
       label: "Desktop state",
-      description: "Read the Boat desktop accessibility tree. This is the Linux computer for this user.",
+      description: "Read the Boat desktop accessibility tree. This does not type or save a file.",
       parameters: Type.Object({}),
       executionMode: "sequential",
       execute: async () => guard(() => call("get_desktop_state", {}).then((observation) => show(observation, desktop.acceptsImages))),

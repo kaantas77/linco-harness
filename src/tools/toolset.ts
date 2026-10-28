@@ -3,6 +3,7 @@ import { buildStablePrompt } from "../prompt/layout.js";
 import type { SkillSummary } from "../skills/catalog.js";
 import { browserTools, jevTools } from "./browser-tools.js";
 import { createTools } from "./create-tools.js";
+import { codeWriteRunTool } from "./code-write.js";
 import { desktopTools } from "./desktop-tools.js";
 import { toolsForRoute } from "../agent/route.js";
 import { vmBrowserTools } from "./vm-browser-tools.js";
@@ -70,8 +71,10 @@ const BOAT_SUFFIX = [
   BOAT_TOOLSET_MARK,
   "Dosya, kabuk ve masaüstü bu kullanıcının Boat bilgisayarındadır. Çalışma yolu /home/user/linco.",
   "Host dosya sistemi bu araçların hedefi değildir.",
-  "browser_* ve jev_run bu oturumda yoktur. Masaüstü için desktop_state, desktop_tree ve desktop_screenshot kullan.",
-  "desktop_click, desktop_type, desktop_window ve desktop_browser onay ister.",
+  "browser_* ve jev_run bu oturumda yoktur. Bir dosyaya yazmak için ilk araç desktop_edit_file olur. desktop_state dosyayı kaydetmez.",
+  "desktop_click, desktop_type, desktop_window, desktop_browser ve desktop_edit_file onay ister.",
+  "Masaüstünde bir dosyaya yazmak için desktop_edit_file kullan. Araç kaydı geri okumadan başarı dönmez.",
+  "Bir programı yazıp çalıştırmak için code_write_run kullan. Sonuçta çıkış kodu ve stdout vardır.",
   "vm_browser_goto ve vm_browser_fill bu sanal makinedeki izole Chrome profilini kullanır ve onay ister. Host tarayıcısı açılmaz.",
   "Web sayfasında birincil yol browser_snapshot ref'leridir. Eski snapshotId reddedilir.",
   "Model görüntü kabul etmiyorsa ekran görüntüsü yerine erişilebilirlik ağacı döner.",
@@ -101,7 +104,7 @@ export function sessionHasPlan(prompt: string): boolean {
 export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
   const base = createTools(host);
   if (host.desktop) {
-    const desktop = [...base, ...desktopTools(host), ...vmBrowserTools(host), ...webResearchTools(host)];
+    const desktop = [...base, ...desktopTools(host), ...vmBrowserTools(host), ...webResearchTools(host), codeWriteRunTool(host)];
     const withGoal = sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
     return toolsForRoute(withGoal, host.toolProfile);
   }

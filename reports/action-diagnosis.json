@@ -1,0 +1,1401 @@
+{
+  "createdAt": "2026-10-28T08:26:41.785Z",
+  "startedFrom": "aee60fc",
+  "sandboxId": "bx_kvp7mkx3",
+  "deleted": true,
+  "rows": [
+    {
+      "name": "desktop fresh",
+      "session": "fresh",
+      "profile": "desktop",
+      "status": "failed",
+      "offered": [
+        "fs_read",
+        "desktop_state",
+        "desktop_tree",
+        "desktop_screenshot",
+        "desktop_click",
+        "desktop_type",
+        "desktop_window",
+        "desktop_batch",
+        "desktop_browser"
+      ],
+      "priorMessages": 0,
+      "turns": [
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state",
+            "fs_read"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_screenshot"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "stop",
+          "calls": []
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "stop",
+          "calls": []
+        }
+      ],
+      "tools": [
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "fs_read",
+          "isError": true,
+          "args": "path=/home/user/linco",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"path escapes workspace: /home/user/linco\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "app=terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": false,
+          "args": "app=terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"accessibility tree\\n✅ Launched Terminal (`gnome-terminal`, pid 17282) in background — resolved 'terminal' via its desktop entry.\"}],\"details\":{\"tree\":\"✅ Launched Terminal (`gnome-terminal`, pid 17282) in b"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed click: boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop bring_to_front is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed focus: step is not allowed\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed click: boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed type: step is not allowed\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_screenshot",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "app=gnome-terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": false,
+          "args": "app=gnome-terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"accessibility tree\\n✅ Launched gnome-terminal (pid 18200) in background.\"}],\"details\":{\"tree\":\"✅ Launched gnome-terminal (pid 18200) in background.\",\"image\":false}}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        }
+      ],
+      "correction": {
+        "sent": true,
+        "starved": false,
+        "turns": 3
+      },
+      "maxTurns": 8
+    },
+    {
+      "name": "code fresh",
+      "session": "fresh",
+      "profile": "code",
+      "status": "succeeded",
+      "offered": [
+        "fs_list",
+        "fs_read",
+        "fs_write",
+        "fs_edit",
+        "shell_exec",
+        "code_run"
+      ],
+      "priorMessages": 0,
+      "turns": [
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "fs_write"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "stop",
+          "calls": []
+        }
+      ],
+      "tools": [
+        {
+          "name": "fs_write",
+          "isError": false,
+          "args": "path=proof/diag-code.mjs",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"wrote proof/diag-code.mjs\"}],\"details\":{\"path\":\"proof/diag-code.mjs\",\"bytes\":29}}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": false,
+          "args": "command=node proof/diag-code.mjs",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"exit 0\\nPHASE106-CODE\\n\"}],\"details\":{\"exitCode\":0}}"
+        }
+      ],
+      "correction": null,
+      "maxTurns": 8
+    },
+    {
+      "name": "desktop same",
+      "session": "same",
+      "profile": "desktop",
+      "status": "running",
+      "offered": [
+        "fs_read",
+        "desktop_state",
+        "desktop_tree",
+        "desktop_screenshot",
+        "desktop_click",
+        "desktop_type",
+        "desktop_window",
+        "desktop_batch",
+        "desktop_browser"
+      ],
+      "priorMessages": 87,
+      "turns": [
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_screenshot"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_screenshot"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "fs_read"
+          ]
+        },
+        {
+          "stopReason": "stop",
+          "calls": []
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_screenshot"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_batch"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_tree"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_type"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_screenshot"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_window"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_state"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "desktop_click"
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": true,
+          "args": "command=ls -la /home/user/linco; ls -la /home/user/linco/proof 2>/dev/null; echo \"---\"; ",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Command references a path outside the workspace.\"}],\"details\":{}}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": true,
+          "args": "command=pwd; ls -la; echo \"--- proof:\"; ls -la proof 2>/dev/null; echo \"--- nano:\"; whic",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Command references a path outside the workspace.\"}],\"details\":{}}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": false,
+          "args": "command=ls -la",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"exit 0\\ntotal 12\\ndrwxr-xr-x 3 user user 4096 Oct 28 08:28 .\\ndrwxr-x--- 27 user user 4096 Oct 28 08:27 ..\\ndrwxr-xr-x 2 user user 4096 Oct 28 08:28 proof\\n\"}],\"details\":{\"exitCode\":0}}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": false,
+          "args": "command=ls -la proof; echo \"---nano\"; command -v nano; echo \"---procs\"; ps -eo pid,comm ",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"exit 0\\ntotal 12\\ndrwxr-xr-x 2 user user 4096 Oct 28 08:28 .\\ndrwxr-xr-x 3 user user 4096 Oct 28 08:28 ..\\n-rw-r--r-- 1 user user 29 Oct 28 08:28 diag-code.mjs\\n---nano\\n/usr/bin/nano\\n---procs\\n 17313 gno"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_screenshot",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop bring_to_front is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed click: boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop bring_to_front is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_screenshot",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "app=gnome-terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": false,
+          "args": "app=gnome-terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"accessibility tree\\n✅ Launched gnome-terminal (pid 19709) in background.\"}],\"details\":{\"tree\":\"✅ Launched gnome-terminal (pid 19709) in background.\",\"image\":false}}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "fs_read",
+          "isError": true,
+          "args": "path=proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat api 400 sandbox_direct_failed\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_screenshot",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed click: boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_batch",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"failed type: step is not allowed\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=cd ~/linco\n",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=cd ~/linco\n",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_tree",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": false,
+          "args": "app=gnome-terminal",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"accessibility tree\\n✅ Launched gnome-terminal (pid 20687) in background.\"}],\"details\":{\"tree\":\"✅ Launched gnome-terminal (pid 20687) in background.\",\"image\":false}}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_type",
+          "isError": true,
+          "args": "text=nano proof/diag-desk.txt",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: No windows found for pid 0. Provide window_id.\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_screenshot",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop get_window_state is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_window",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"desktop bring_to_front is missing pid\"}],\"details\":{},\"isError\":true}"
+        },
+        {
+          "name": "desktop_state",
+          "isError": false,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"screenshot attached\\n✅ Desktop screenshot 1920x1080 (screen 1920x1080)\"},{\"type\":\"image\",\"data\":\"iVBORw0KGgoAAAANSUhEUgAAB4AAAAQ4CAIAAABnsVYUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAG"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Desktop input on the Boat computer needs user approval.\"}],\"details\":{},\"terminate\":true}"
+        },
+        {
+          "name": "desktop_click",
+          "isError": true,
+          "args": "",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"boat desktop driver did not answer: click: x,y given with no pid/window_id requires scope=\\\"desktop\\\"; use get_desktop_state to read true screen pixels first.\"}],\"details\":{},\"isError\":true}"
+        }
+      ],
+      "correction": {
+        "sent": true,
+        "starved": false,
+        "turns": 4
+      },
+      "maxTurns": 8
+    },
+    {
+      "name": "code same",
+      "session": "same",
+      "profile": "code",
+      "status": "succeeded",
+      "offered": [
+        "fs_list",
+        "fs_read",
+        "fs_write",
+        "fs_edit",
+        "shell_exec",
+        "code_run"
+      ],
+      "priorMessages": 7,
+      "turns": [
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "fs_write"
+          ]
+        },
+        {
+          "stopReason": "toolUse",
+          "calls": [
+            "shell_exec"
+          ]
+        },
+        {
+          "stopReason": "stop",
+          "calls": []
+        }
+      ],
+      "tools": [
+        {
+          "name": "fs_write",
+          "isError": false,
+          "args": "path=proof/diag-code-2.mjs",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"wrote proof/diag-code-2.mjs\"}],\"details\":{\"path\":\"proof/diag-code-2.mjs\",\"bytes\":31}}"
+        },
+        {
+          "name": "shell_exec",
+          "isError": false,
+          "args": "command=node proof/diag-code-2.mjs",
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"exit 0\\nPHASE106-CODE-2\\n\"}],\"details\":{\"exitCode\":0}}"
+        }
+      ],
+      "correction": null,
+      "maxTurns": 8
+    }
+  ],
+  "totals": {
+    "durationMs": 216866,
+    "deepseekUsd": 0.045048,
+    "boatUsd": 0.00106
+  },
+  "notes": [
+    "Each row is one task. fresh starts from an empty transcript. same continues that session. Test approval is not a production approval."
+  ]
+}

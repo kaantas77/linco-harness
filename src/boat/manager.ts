@@ -5,6 +5,7 @@ import type { LincoDb } from "../db/database.js";
 import { WorkspaceEscapeError } from "../security/workspace.js";
 import type { ComputerBinding } from "../types.js";
 import { BoatFailure, type BoatClient, type BoatMachineType, type BoatSandboxView, type DesktopObservation } from "./client.js";
+import { typeIntoEditor, type DriverCaller } from "./desktop-flow.js";
 import { fitArguments, type DriverSchema } from "./driver-schema.js";
 import { REMOTE_PREFIX, REMOTE_WORKSPACE, RETENTION_NOTE, boatFilePath, quoteShell, workspaceRelative } from "./paths.js";
 import { redactBoat } from "./redact.js";
@@ -360,6 +361,39 @@ export class BoatSandboxManager {
       this.options.db.releaseDesktopLock(row.sandboxId, taskId);
       this.touch(userId);
     }
+  }
+
+  /** Opens the editor, types, saves, and reads the file back under one desktop lock. */
+  async editDesktopFile(userId: string, taskId: string, relativePath: string, text: string): Promise<{ ok: boolean; detail: string; calls: string[] }> {
+    const relative = workspaceRelative(relativePath);
+    if (!text.trim() || text.length > 4_000) throw new BoatFailure("desktop text is empty or too long");
+    const absolute = `${REMOTE_WORKSPACE}/${relative}`;
+    const directory = absolute.split("/").slice(0, -1).join("/");
+    const prepared = await this.run(userId, `mkdir -p -- ${quoteShell(directory)}`, 15_000);
+    if (prepared.exitCode !== 0) throw new BoatFailure(prepared.stderr || prepared.stdout || `desktop directory was not created (${prepared.exitCode})`);
+    const typed = await this.withDesktop(userId, taskId, (call) => {
+      const driver: DriverCaller = { call, schema: (name) => this.schema(name) };
+      return typeIntoEditor(driver, absolute, text);
+    });
+    await sleep(500);
+    const stages = await this.fileStages(userId, relative);
+    const cat = stages.find((stage) => stage.stage === "cat");
+    let readText = "";
+    let readError = "";
+    try {
+      readText = (await this.read(userId, relative)).text;
+    } catch (error) {
+      readError = messageOf(error);
+    }
+    const calls = typed.calls;
+    const typedOk = typed.ok && calls.includes("click") && calls.includes("type_text");
+    const hasText = readText.includes(text) || (text.length <= 120 && Boolean(cat?.detail.includes(text)));
+    const absent = /no such file|cannot stat|not found/i.test(`${cat?.detail ?? ""} ${readError}`);
+    if (!typedOk) return { ok: false, detail: `calls ${calls.join(",") || "none"}; ${typed.detail}`, calls };
+    if (!hasText && absent) return { ok: false, detail: `the file was not saved; calls ${calls.join(",") || "none"}; ${typed.detail}`, calls };
+    if (!hasText && readError && !absent) return { ok: false, detail: `the saved file could not be read: ${readError}`, calls };
+    if (!hasText) return { ok: false, detail: `the saved file does not contain the text; calls ${calls.join(",") || "none"}; ${typed.detail}; read ${(readText || cat?.detail || "").replace(/\s+/g, " ").slice(0, 180)}`, calls };
+    return { ok: true, detail: `calls ${calls.join(",")}; read back the text`, calls };
   }
 
   /** Records each file and command path once. It does not retry a failed call. */

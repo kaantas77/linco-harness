@@ -10,8 +10,8 @@ export interface ExecutionRoute {
 
 const NO_BROWSER = /tarayıcı(?:yı|sini)?\s+kullanma|do not use (?:a )?browser|yalnızca\s+api|only\s+api/iu;
 const RESEARCH = /araştır|research|web(?:den|\s+search)?|internet(?:te)?|karşılaştır|özetle|haber/iu;
-const DESKTOP = /masaüstü|desktop app|uygulamayı aç|nano|gedit|pencere/iu;
-const CODE = /kod(?:u)?\s+(?:yaz|çalıştır)|run\s+(?:the\s+)?code|shell|terminalde\s+çalıştır/iu;
+const DESKTOP = /masaüstü|masaustu|desktop|text editor|nano|gedit|pencere/iu;
+const CODE = /kod(?:unu|u)?\s+(?:yaz|çalıştır)|write\s+(?:a\s+|the\s+)?(?:node\s+|javascript\s+|python\s+)?(?:program|script)|run\s+(?:the\s+|it\s+|this\s+)?(?:code|script|program)|execute\s+(?:the\s+)?script|shell|terminalde\s+çalıştır/iu;
 const BROWSER = /form|site(?:yi|yı)|sayfa(?:yı|yi)|chrome|tarayıcı/iu;
 const BROWSER_ACTION = /a[cç]|open|doldur|fill|tıkla|click|git|navigate/iu;
 
@@ -43,18 +43,8 @@ const ALLOWED: Record<Exclude<ToolProfile, "agent">, ReadonlySet<string>> = {
     "vm_browser_read",
     "vm_browser_fill",
   ]),
-  desktop: new Set([
-    "desktop_state",
-    "desktop_tree",
-    "desktop_screenshot",
-    "desktop_click",
-    "desktop_type",
-    "desktop_window",
-    "desktop_browser",
-    "desktop_batch",
-    "fs_read",
-  ]),
-  code: new Set(["fs_list", "fs_read", "fs_write", "fs_edit", "shell_exec", "code_run"]),
+  desktop: new Set(["desktop_edit_file"]),
+  code: new Set(["fs_list", "fs_read", "fs_write", "fs_edit", "shell_exec", "code_run", "code_write_run"]),
 };
 
 /** `agent` returns the list unchanged. Other profiles hide tools that are outside the route. */
