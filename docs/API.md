@@ -1,8 +1,8 @@
 # Linco API
 
-Base URL is the harness server. Token mode requires `Authorization: Bearer <token>`. `LINCO_AUTH=dev` accepts every request and only binds to loopback. A user token that does not own the resource gets 404. A bootstrap token can create users and cannot call the other routes.
+Base URL is the harness server. Token mode requires `Authorization: Bearer <token>`. `LINCO_AUTH=dev` accepts every request and only binds to loopback. A user token that does not own the resource gets 404. A bootstrap token can create users and can call `/v1/app/*`. It cannot call the user routes.
 
-`GET /health` returns `publicReady: false` until the pilot gates in `reports/pilot-security.md` are closed.
+`GET /health` returns `publicReady: false` until the pilot gates in `reports/pilot-security-v2.md` are closed. `vmBrowser` is false unless `LINCO_VM_BROWSER=1`.
 
 ## Identities
 
@@ -35,7 +35,17 @@ Task status is one of:
 - `evidence.contract` derived from the user text
 - `evidence.runs` with `exitCode`, `timedOut`, `stdout`, `path`, and `command` when the tool recorded them
 
-`GET /v1/tasks/:id/events` is `text/event-stream`. Each event is `data: {"id","status","error","resultText"}`. The stream ends on `succeeded`, `failed`, `cancelled`, or `needs_inspection`. A client that already polls should use `GET /v1/tasks/:id` instead. `src/client/linco.ts` polls.
+`GET /v1/tasks/:id/events` is `text/event-stream`. Each event has an `id` line and `data: {"id","status","error","resultText"}`. The stream repeats the current status and ends on `succeeded`, `failed`, `cancelled`, or `needs_inspection`. A dropped connection is opened again; the new stream starts from the current status. `src/client/linco.ts` polls with `wait` and follows the stream with `watch`. `waiting_approval` and `waiting_children` are pauses. The other four terminal statuses end the wait. Read `task.status` and `evidence.runs` as separate fields.
+
+## Application server
+
+These routes are for the app's own server. A user token receives 403. The response never includes a Linco user token or the bootstrap token. `externalUserId` is stored on the Linco user and is not a credential.
+
+`POST /v1/app/sessions` with `{ "externalUserId": "..." }` returns `{ "userId", "sessionId" }`. The same external id reuses that session.
+
+`POST /v1/app/messages` with `{ "externalUserId", "text", "waitMs" }` opens that session and returns the task view. `waitMs` 0 returns `queued`.
+
+`GET /v1/app/tasks/:id` returns the same view as `GET /v1/tasks/:id`. `GET /v1/app/tasks/:id/events` is the same stream. `POST /v1/app/tasks/:id/approve` and `POST /v1/app/tasks/:id/cancel` match the user routes.
 
 `POST /v1/tasks/:id/cancel` cancels a task that is not already terminal.
 

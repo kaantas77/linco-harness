@@ -2,6 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import type { DesktopObservation } from "../boat/client.js";
 import { openVerifiedPage, readIds } from "../boat/desktop-flow.js";
+import { browserAppName } from "../security/policy.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
 import type { ToolHost } from "./host.js";
@@ -87,6 +88,9 @@ export function desktopTools(host: ToolHost): AgentTool[] {
       executionMode: "sequential",
       execute: async (_id, params) =>
         guard(async () => {
+          if (host.browserControl === false && params.app && browserAppName(params.app)) {
+            return error("Boat browser control is off for the private pilot.");
+          }
           if (!params.app && !params.windowId) return error("app or windowId is required");
           const observation = params.windowId
             ? await call("bring_to_front", { window_id: params.windowId })
@@ -110,6 +114,9 @@ export function desktopTools(host: ToolHost): AgentTool[] {
       executionMode: "sequential",
       execute: async (_id, params) =>
         guard(async () => {
+          if (host.browserControl === false && /chrome|chromium|launch_app/i.test(JSON.stringify(params.steps))) {
+            return error("Boat browser control is off for the private pilot.");
+          }
           if (!desktop.sequence) return error("desktop sequence is unavailable");
           const mapped = params.steps.map((step) => ({
             tool: step.tool,
@@ -135,6 +142,7 @@ export function desktopTools(host: ToolHost): AgentTool[] {
       executionMode: "sequential",
       execute: async (_id, params) =>
         guard(async () => {
+          if (host.browserControl === false) return error("Boat browser control is off for the private pilot.");
           const opened = await openVerifiedPage(
             { call, schema: (name) => desktop.schema?.(name) },
             params.url,

@@ -32,6 +32,7 @@ export interface TaskView {
 }
 
 const TERMINAL = new Set<TaskStatus>(["succeeded", "failed", "cancelled", "needs_inspection"]);
+const PAUSED = new Set<TaskStatus>(["waiting_approval", "waiting_children"]);
 
 export class LincoClient {
   constructor(
@@ -49,6 +50,27 @@ export class LincoClient {
 
   async sendMessage(sessionId: string, text: string, waitMs = 0): Promise<LincoTask> {
     return this.request("POST", `/v1/sessions/${sessionId}/messages`, { text, waitMs });
+  }
+
+  /** Server-side map. The response has no Linco user token. */
+  async openAppSession(externalUserId: string): Promise<{ userId: string; sessionId: string }> {
+    return this.request("POST", "/v1/app/sessions", { externalUserId });
+  }
+
+  async sendAppMessage(externalUserId: string, text: string, waitMs = 0): Promise<TaskView> {
+    return this.request("POST", "/v1/app/messages", { externalUserId, text, waitMs });
+  }
+
+  async appTask(taskId: string): Promise<TaskView> {
+    return this.request("GET", `/v1/app/tasks/${taskId}`);
+  }
+
+  async approveApp(taskId: string, approvalId: string, decision: "approved" | "denied"): Promise<LincoTask> {
+    return this.request("POST", `/v1/app/tasks/${taskId}/approve`, { approvalId, decision });
+  }
+
+  async cancelApp(taskId: string): Promise<LincoTask> {
+    return this.request("POST", `/v1/app/tasks/${taskId}/cancel`, {});
   }
 
   async task(taskId: string): Promise<TaskView> {
@@ -75,11 +97,67 @@ export class LincoClient {
   async wait(taskId: string, timeoutMs = 30_000, intervalMs = 200): Promise<TaskView> {
     const started = Date.now();
     let latest = await this.task(taskId);
-    while (!TERMINAL.has(latest.task.status) && latest.task.status !== "waiting_approval" && Date.now() - started < timeoutMs) {
+    while (!TERMINAL.has(latest.task.status) && !PAUSED.has(latest.task.status) && Date.now() - started < timeoutMs) {
       await sleep(intervalMs);
       latest = await this.task(taskId);
     }
     return latest;
+  }
+
+  /**
+   * Follows `GET /v1/tasks/:id/events`, or the app route when `app` is set.
+   * A dropped connection is opened again. The server repeats the current status.
+   */
+  async watch(
+    taskId: string,
+    options: { timeoutMs?: number; signal?: AbortSignal; app?: boolean; onEvent?: (event: { id?: string; status: TaskStatus }) => void } = {},
+  ): Promise<TaskView> {
+    const timeoutMs = options.timeoutMs ?? 30_000;
+    const started = Date.now();
+    const path = options.app ? `/v1/app/tasks/${taskId}/events` : `/v1/tasks/${taskId}/events`;
+    let lastId = "";
+    while (Date.now() - started < timeoutMs) {
+      if (options.signal?.aborted) throw new Error("watch aborted");
+      const headers: Record<string, string> = { accept: "text/event-stream" };
+      if (this.token) headers.authorization = `Bearer ${this.token}`;
+      if (lastId) headers["last-event-id"] = lastId;
+      const controller = new AbortController();
+      const onAbort = () => controller.abort();
+      options.signal?.addEventListener("abort", onAbort);
+      try {
+        const response = await fetch(`${this.baseUrl}${path}`, { headers, signal: controller.signal });
+        if (!response.ok || !response.body) throw new Error(`watch failed (${response.status})`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (Date.now() - started < timeoutMs) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const blocks = buffer.split("\n\n");
+          buffer = blocks.pop() ?? "";
+          for (const block of blocks) {
+            const id = /^id:\s*(\S+)/m.exec(block)?.[1];
+            const dataLine = block.split("\n").find((line) => line.startsWith("data:"));
+            if (id) lastId = id;
+            if (!dataLine) continue;
+            const event = JSON.parse(dataLine.slice(5).trim()) as { status: TaskStatus };
+            options.onEvent?.({ ...(id ? { id } : {}), status: event.status });
+            if (options.signal?.aborted) throw new Error("watch aborted");
+            if (TERMINAL.has(event.status) || PAUSED.has(event.status)) {
+              await reader.cancel().catch(() => undefined);
+              return options.app ? this.appTask(taskId) : this.task(taskId);
+            }
+          }
+        }
+      } catch (error) {
+        if (options.signal?.aborted) throw error instanceof Error ? error : new Error("watch aborted");
+      } finally {
+        options.signal?.removeEventListener("abort", onAbort);
+      }
+      await sleep(50);
+    }
+    return options.app ? this.appTask(taskId) : this.task(taskId);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

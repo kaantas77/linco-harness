@@ -213,6 +213,8 @@ Faz 10.6 `aee60fc` üstüne geldi. Teşhis `bx_kvp7mkx3` üzerinde bitti ve maki
 
 Faz 11 `aaf3211` üstüne geldi. Yeni bir canlı makine açılmadı. 10/10, 9/10 ve 5/5 durur. Kod satırının `failed` kalmasının nedeni, doğrulayıcının 240 karaktere kırpılmış araç metninde `exit 0` aramasıydı. İz artık sürecin `exitCode`, `timedOut`, `stdout`, `path` ve `command` alanlarını taşır. Metin eşleşmesi başarı sayılmaz. API sözleşmesi `docs/API.md` içindedir. Örnek istemci `src/client/linco.ts` yoklamayı kullanır. `GET /v1/tasks/:id/events` aynı durumu SSE olarak yazar. Mevcut uygulamanın kodu bu depoda olmadığı için o uygulamaya dokunulmadı. `LINCO_VM_BROWSER` kapalıdır. Görev başına token ve USD tavanı, kullanıcı başına tek makine, boşta durdurma ve kira kurtarması durur. SQLite yolu `LINCO_DATA_DIR/linco.sqlite`. Railway planı `docs/INTEGRATION.md` içindedir ve dağıtım yapılmadı. Herkese açık kullanıma hazır değildir. Ayrıntı `reports/backend-integration.md` ve `reports/pilot-security.md` içindedir.
 
+Faz 12 `8eea783` üstüne geldi. Yeni bir canlı makine açılmadı. 10/10, 9/10 ve 5/5 durur. weblinco `/Users/kaantas/weblinco` altındadır. Kullanıcı hesabı yoktur. Mesaj `app/(agent)/page.tsx` içinden `POST /api/agent` adresine gider. Ekranlar değiştirilmedi ve weblinco Linco çağırmıyor. Bağlantı noktası `POST /v1/app/messages` oldu. `externalUserId` sunucuda Linco kullanıcısına ve aynı oturuma bağlanır. Cevapta Linco jetonu yoktur. İstemci `watch` kopan SSE akışını yeniden açar. `LINCO_VM_BROWSER` kapalıyken masaüstü, kabuk ve kod yolundan Chrome başlamaz. Yönetici de reddeder ve kalan soket ile profili mühürler. Aynı uid bu mühürü geri açabilir. Yönlendirme ve DNS yeniden bağlama hâlâ açık olduğu için herkese açık kullanım NO-GO durur. Railway planı durur ve dağıtım yapılmadı. Ayrıntı `reports/application-integration.md` ve `reports/pilot-security-v2.md` içindedir.
+
 12. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
 13. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
@@ -268,6 +270,9 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `reports/action-diagnosis.json` — Faz 10.6 teşhisi, `bx_kvp7mkx3`
 - `reports/backend-integration.md` — Faz 11 API sözleşmesi ve kod kanıtı
 - `reports/pilot-security.md` — Faz 11, herkese açık kullanım NO-GO
+- `reports/application-integration.md`, `reports/application-integration.json` — Faz 12, weblinco bağlantı planı ve API kanıtı
+- `reports/pilot-security-v2.md` — Faz 12, tarayıcı kapalı, herkese açık kullanım NO-GO
+- `test/application-integration.test.ts`, `test/browser-closed.test.ts` — uygulama oturumu, kod kanıtı, dosya kalıcılığı ve Chrome reddi
 - `docs/API.md`, `docs/INTEGRATION.md` — mevcut uygulamanın çağıracağı sözleşme
 - `src/client/linco.ts` — yoklayan örnek istemci
 - `test/backend-api.test.ts` — görev yaşamı, onay, maliyet, kurtarma ve kullanıcı ayrımı

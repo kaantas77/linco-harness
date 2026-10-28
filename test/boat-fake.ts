@@ -54,14 +54,15 @@ export class FakeBoat implements BoatClient {
   async command(input: { sandboxId: string; command: string; cwd?: string; timeoutSeconds: number }): Promise<BoatCommandResult> {
     if (this.commandDelayMs) await sleep(this.commandDelayMs);
     this.commands.push(input.command);
+    const command = input.command.replace(/^(?:ulimit\b[^;]*;\s*)+/, "");
     const box = this.must(input.sandboxId);
-    if (input.command.startsWith("curl ")) {
-      if (input.command.includes("evil.test")) {
+    if (command.startsWith("curl ")) {
+      if (command.includes("evil.test")) {
         return ok("HTTP/1.1 302 Found\r\nlocation: http://169.254.169.254/latest\r\n\r\n");
       }
       return ok("HTTP/1.1 200 OK\r\n\r\nexample page");
     }
-    const printed = /^printf\s+(\S+)\s*>\s*(\S+)\s*$/.exec(input.command.trim());
+    const printed = /^printf\s+(\S+)\s*>\s*(\S+)\s*$/.exec(command.trim());
     if (printed) {
       const target = printed[2] ?? "";
       const content = printed[1] ?? "";
@@ -69,14 +70,14 @@ export class FakeBoat implements BoatClient {
       else box.files.set(place(input.cwd, target), content);
       return ok("");
     }
-    const removed = /^rm -f -- '([^']+)'$/.exec(input.command.trim());
+    const removed = /^rm -f -- '([^']+)'$/.exec(command.trim());
     if (removed?.[1]) {
       const relative = removed[1].replace("/home/user/", "");
       box.files.delete(relative);
       return ok("");
     }
-    if (input.command.includes("boat_secret")) return ok("boat_secret https://box.on.boat.dev/desk?_token=abc");
-    if (input.command.includes("vm-browser.mjs call")) {
+    if (command.includes("boat_secret")) return ok("boat_secret https://box.on.boat.dev/desk?_token=abc");
+    if (command.includes("vm-browser.mjs call")) {
       return ok('{"ok":true,"engine":"playwright","op":"goto","title":"Example Domain","url":"https://example.com/","text":"Example Domain"}\n');
     }
     return ok("");

@@ -1,29 +1,35 @@
 # Integrating an existing app
 
-Linco is the backend. The app keeps its own screens and calls this API. This repo does not contain that app and does not add a frontend.
+The app inspected for this phase is the Next.js tree at `/Users/kaantas/weblinco`. It is not part of this repo. Its screens were not changed, and it does not call Linco yet.
 
-Use `src/client/linco.ts` or the same requests from the app's HTTP client.
+What that app does today:
+
+- There is no user account. `app/(agent)/_lib/db.ts` throws, and `app/(agent)/api/conversations/route.ts` returns 501.
+- `app/(agent)/page.tsx` sends chat through `useChat` to `POST /api/agent`.
+- `app/(agent)/api/agent/route.ts` is the server function that would call Linco. It already reads server environment for its own model key. A Linco bootstrap token belongs in that server environment, not in the browser and not in a client bundle.
+- `app/(agent)/_hooks/use-acp-chat.ts` posts to `/api/acp/run` and reads SSE. That hook is a second server entry, not a Linco client.
+
+The harness side of the connection is `POST /v1/app/messages`. The Next server would send the app's user id as `externalUserId`. Linco stores that id, reuses one session, and returns a task view. The view has no Linco token.
 
 ```ts
 import { LincoClient } from "./client/linco.js";
 
-const linco = new LincoClient(process.env.LINCO_URL ?? "http://127.0.0.1:8787", process.env.LINCO_TOKEN);
-const session = await linco.createSession(userId);
-const queued = await linco.sendMessage(session.id, text);
-const view = await linco.wait(queued.id);
+const linco = new LincoClient(process.env.LINCO_URL ?? "http://127.0.0.1:8787", process.env.LINCO_BOOTSTRAP_TOKEN);
+const queued = await linco.sendAppMessage(externalUserId, text);
+const view = await linco.watch(queued.task.id, { app: true });
 if (view.task.status === "waiting_approval") {
   const approval = view.approvals.find((item) => item.status === "pending");
-  if (approval) await linco.approve(queued.id, approval.id, "approved");
+  if (approval) await linco.approveApp(queued.task.id, approval.id, "approved");
 }
 ```
 
-Poll `GET /v1/tasks/:id` about every few hundred milliseconds. Open `GET /v1/tasks/:id/events` only if the app can hold one response per task. Stop on `succeeded`, `failed`, `cancelled`, or `needs_inspection`. Show `waiting_approval` to the user and post their decision. Read `evidence.runs` for the exit code, stdout, and file. Do not treat the assistant sentence as proof.
+`watch` follows `GET /v1/app/tasks/:id/events`. If the socket drops, it connects again and the server repeats the current status. `wait` polls `GET /v1/app/tasks/:id` for the same pause and terminal statuses. The next message uses the same `externalUserId` and the same session. Compare `task.status` with `evidence.runs`. The assistant sentence is not the proof.
 
-Send the next message on the same session id. The worker runs one task per session at a time. Boat mode keeps that user's files on one virtual machine. A different user token cannot read the session, the task, or that machine.
+A user token cannot call `/v1/app/*`. A bootstrap token cannot call `/v1/tasks/:id`. One external id gets one Linco user and one Boat machine.
 
 ## Private pilot
 
-Set `LINCO_AUTH=token` and give each tester the token from `POST /v1/users`. Leave `LINCO_VM_BROWSER` unset. `GET /health` stays `publicReady: false`. Desktop save and code run are for those testers. Browser control, redirects, and DNS rebinding stay off.
+Set `LINCO_AUTH=token`. Keep `LINCO_BOOTSTRAP_TOKEN` on the app server. Leave `LINCO_VM_BROWSER` unset. `GET /health` stays `publicReady: false`. Desktop file save and `code_write_run` are for that server. Browser control, redirects, and DNS rebinding stay off.
 
 ## Process and disk
 

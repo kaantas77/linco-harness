@@ -226,6 +226,20 @@ export class LincoDb {
     return row ? mapUser(row) : undefined;
   }
 
+  userForExternal(externalUserId: string): User | undefined {
+    const row = this.one<UserRow>("SELECT * FROM users WHERE external_id = ?", externalUserId);
+    return row ? mapUser(row) : undefined;
+  }
+
+  bindExternalUser(userId: string, externalUserId: string): void {
+    const changed = this.changes(
+      "UPDATE users SET external_id = ? WHERE id = ? AND external_id IS NULL",
+      externalUserId,
+      userId,
+    );
+    if (changed !== 1) throw new Error("external user was not stored");
+  }
+
   createSession(userId: string, skills: SkillCatalog, systemPrompt?: string): Session {
     const user = this.getUser(userId);
     if (!user) throw new Error(`unknown user ${userId}`);
@@ -1132,6 +1146,8 @@ export class LincoDb {
         expires_at TEXT NOT NULL
       );
     `);
+    this.addColumn("users", "external_id", "TEXT");
+    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_external_id ON users(external_id)");
     this.addColumn("tasks", "goal_json", "TEXT");
     this.addColumn("tasks", "fence", "INTEGER NOT NULL DEFAULT 0");
     this.addColumn("tasks", "lease_until", "TEXT");

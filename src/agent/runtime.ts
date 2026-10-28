@@ -12,7 +12,7 @@ import { planContext } from "../prompt/compact.js";
 import { composeUserMessage, selectMemories } from "../prompt/layout.js";
 import { loopbackHost } from "../config.js";
 import { hashToken, newToken } from "../security/tokens.js";
-import { approvalHash, assess } from "../security/policy.js";
+import { approvalHash, assess, boatBrowserBlocked } from "../security/policy.js";
 import { bindBoat } from "../boat/bind.js";
 import { createBoatClient } from "../boat/client.js";
 import { BoatSandboxManager } from "../boat/manager.js";
@@ -147,6 +147,26 @@ export class Harness {
       return { mode: "local" as const, workspacePath: user?.workspacePath ?? null };
     }
     return this.boat.describe(userId);
+  }
+
+  openAppSession(externalUserId: string): { userId: string; sessionId: string } {
+    const key = externalUserId.trim();
+    if (!key || key.length > 200 || /[\r\n]/.test(key)) throw new Error("externalUserId is invalid");
+    const linked = this.db.userForExternal(key) ?? this.bindNewExternalUser(key);
+    const session = this.db.latestSession(linked.id) ?? this.createSession(linked.id);
+    return { userId: linked.id, sessionId: session.id };
+  }
+
+  private bindNewExternalUser(externalUserId: string): User {
+    const created = this.createUser(externalUserId.slice(0, 80));
+    try {
+      this.db.bindExternalUser(created.id, externalUserId);
+      return created;
+    } catch {
+      const existing = this.db.userForExternal(externalUserId);
+      if (existing) return existing;
+      throw new Error("external user was not stored");
+    }
   }
 
   async ensureComputer(userId: string) {
@@ -391,7 +411,7 @@ export class Harness {
         browser: bound?.browser ?? this.browser,
         computer: bound?.computer ?? this.computer,
         files: bound?.files ?? localFiles(session.workspacePath),
-        ...(bound ? { desktop: bound.desktop, ...(bound.vmBrowser ? { vmBrowser: bound.vmBrowser } : {}) } : {}),
+        ...(bound ? { desktop: bound.desktop, browserControl: this.config.vmBrowser, ...(bound.vmBrowser ? { vmBrowser: bound.vmBrowser } : {}) } : {}),
         ...(task.checkpoint?.toolProfile ? { toolProfile: task.checkpoint.toolProfile } : {}),
         signal: abort.signal,
         claim,
@@ -709,6 +729,9 @@ export class Harness {
   private gate(host: ToolHost, context: BeforeToolCallContext, claim: TaskClaim) {
     if (!this.db.holdsLease(claim.taskId, claim.fence, claim.workerId)) {
       return { block: true, terminate: true, reason: "worker lease is no longer held" };
+    }
+    if (!this.config.vmBrowser && boatBrowserBlocked(context.toolCall.name, context.args)) {
+      return { block: true, reason: "Boat browser control is off for the private pilot." };
     }
     const boatMutation = host.desktop && (context.toolCall.name === "browser_click" || context.toolCall.name === "browser_fill" || context.toolCall.name === "browser_select");
     const assessment = boatMutation

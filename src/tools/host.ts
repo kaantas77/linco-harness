@@ -31,8 +31,10 @@ export interface ToolHost {
   computer: ComputerProvider;
   files?: WorkspaceFiles;
   desktop?: DesktopBridge;
-  /** Chrome inside the Boat VM. Absent on the host computer. */
+  /** Chrome inside the Boat VM. Absent on the host computer and while the pilot browser is off. */
   vmBrowser?: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
+  /** False while `LINCO_VM_BROWSER` is off. Desktop and shell launches of Chrome stop. */
+  browserControl?: boolean;
   /** Set from the task checkpoint. Absent means the full tool list. */
   toolProfile?: ToolProfile;
   signal: AbortSignal;

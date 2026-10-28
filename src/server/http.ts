@@ -95,6 +95,10 @@ export class HarnessServer {
     const automations = match(path, "/v1/users/:id/automations");
     const notifications = match(path, "/v1/users/:id/notifications");
     const notificationRead = match(path, "/v1/notifications/:id/read");
+    const appTaskCancel = match(path, "/v1/app/tasks/:id/cancel");
+    const appTaskApprove = match(path, "/v1/app/tasks/:id/approve");
+    const appTaskEvents = match(path, "/v1/app/tasks/:id/events");
+    const appTask = match(path, "/v1/app/tasks/:id");
 
     if (method === "POST" && path === "/v1/users") {
       if (principal.kind === "user") throw new HttpError(403, "forbidden");
@@ -108,6 +112,44 @@ export class HarnessServer {
       const token = newToken();
       this.harness.db.issueUserToken(created.id, hashToken(token));
       send(response, 201, { ...created, token });
+      return;
+    }
+    if (path === "/v1/app/sessions" || path === "/v1/app/messages" || appTask || appTaskCancel || appTaskApprove || appTaskEvents) {
+      this.requireApp(principal);
+    }
+    if (method === "POST" && path === "/v1/app/sessions") {
+      const body = await readJson(request);
+      send(response, 200, this.harness.openAppSession(requiredString(body, "externalUserId")));
+      return;
+    }
+    if (method === "POST" && path === "/v1/app/messages") {
+      const body = await readJson(request);
+      const opened = this.harness.openAppSession(requiredString(body, "externalUserId"));
+      const taskRecord = await this.harness.submit(opened.sessionId, requiredString(body, "text"), {
+        waitMs: optionalNumber(body, "waitMs"),
+        maxAttempts: optionalNumber(body, "maxAttempts"),
+      });
+      send(response, 202, this.taskView(this.harness.db.getTask(taskRecord.id) ?? taskRecord));
+      return;
+    }
+    if (method === "GET" && appTask && !appTaskCancel && !appTaskApprove && !appTaskEvents) {
+      send(response, 200, this.taskView(this.appTask(idOf(appTask))));
+      return;
+    }
+    if (method === "GET" && appTaskEvents) {
+      await this.streamTask(request, response, this.appTask(idOf(appTaskEvents)).id);
+      return;
+    }
+    if (method === "POST" && appTaskCancel) {
+      send(response, 200, this.harness.cancel(this.appTask(idOf(appTaskCancel)).id));
+      return;
+    }
+    if (method === "POST" && appTaskApprove) {
+      const found = this.appTask(idOf(appTaskApprove));
+      const body = await readJson(request);
+      const decision = requiredString(body, "decision");
+      if (decision !== "approved" && decision !== "denied") throw new HttpError(400, "decision must be approved or denied");
+      send(response, 200, this.harness.approve(found.id, requiredString(body, "approvalId"), decision));
       return;
     }
     this.requireUser(principal);
@@ -284,6 +326,16 @@ export class HarnessServer {
     if (principal.kind === "bootstrap") throw new HttpError(403, "forbidden");
   }
 
+  private requireApp(principal: Principal): void {
+    if (principal.kind === "user") throw new HttpError(403, "forbidden");
+  }
+
+  private appTask(id: string): Task {
+    const task = this.harness.db.getTask(id);
+    if (!task) throw new HttpError(404, "task not found");
+    return task;
+  }
+
   private owns(principal: Principal, userId: string): void {
     if (principal.kind === "dev") return;
     if (principal.kind !== "user" || principal.userId !== userId) throw new HttpError(404, "not found");
@@ -326,7 +378,7 @@ export class HarnessServer {
       const payload = current
         ? { id: current.id, status: current.status, error: current.error, resultText: current.resultText }
         : { id: taskId, status: "failed", error: "task not found" };
-      response.write(`data: ${redactSecrets(JSON.stringify(payload))}\n\n`);
+      response.write(`id: ${attempt + 1}\ndata: ${redactSecrets(JSON.stringify(payload))}\n\n`);
       if (!current || terminal.has(current.status)) break;
       await sleep(200);
     }

@@ -2,6 +2,8 @@ import type { PageSnapshot } from "../tools/browser.js";
 import type { ExecResult } from "../tools/computer.js";
 import { inspectDestination } from "../browser/navigation-policy.js";
 import type { LincoDb } from "../db/database.js";
+import { limitCommand } from "../security/isolate.js";
+import { controlPlaneBlocked, desktopStartsBrowser } from "../security/policy.js";
 import { WorkspaceEscapeError } from "../security/workspace.js";
 import type { ComputerBinding } from "../types.js";
 import { BoatFailure, type BoatClient, type BoatMachineType, type BoatSandboxView, type DesktopObservation } from "./client.js";
@@ -16,6 +18,7 @@ import {
   vmBrowserInstallCommand,
   vmBrowserPrepareCommand,
   vmBrowserServeCommand,
+  browserSealCommand,
   type VmBrowserRequest,
   type VmBrowserResult,
 } from "./vm-browser.js";
@@ -56,6 +59,7 @@ export class BoatSandboxManager {
   private schemasLoaded = false;
   private readonly readyTimeoutMs: number;
   private readonly seen = new Map<string, number>();
+  private readonly sealed = new Set<string>();
 
   constructor(private readonly options: BoatManagerOptions) {
     this.readyTimeoutMs = options.readyTimeoutMs ?? 90_000;
@@ -102,7 +106,10 @@ export class BoatSandboxManager {
   async ensure(userId: string): Promise<ComputerBinding> {
     const cached = this.seen.get(userId);
     const current = this.options.db.getComputer(userId);
-    if (cached && current?.sandboxId && current.status === "ready" && Date.now() - cached < 3_000) return current;
+    if (cached && current?.sandboxId && current.status === "ready" && Date.now() - cached < 3_000) {
+      await this.sealClosedBrowser(current.sandboxId);
+      return current;
+    }
     const begun = this.options.db.beginComputer(userId, this.options.machineType, REMOTE_WORKSPACE, RETENTION_NOTE);
     if (!begun.owner) {
       if (begun.record.sandboxId && begun.record.status !== "creating") return this.refresh(begun.record);
@@ -128,6 +135,7 @@ export class BoatSandboxManager {
     const row = await this.ensure(userId);
     if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
     this.seen.delete(userId);
+    this.sealed.delete(row.sandboxId);
     try {
       await this.options.client.stop(row.sandboxId);
       await this.waitUntil(row.sandboxId, (state) => STOPPED.has(state) || state === "error");
@@ -140,6 +148,10 @@ export class BoatSandboxManager {
   }
 
   async run(userId: string, command: string, timeoutMs: number, signal?: AbortSignal): Promise<ExecResult> {
+    if (this.options.vmBrowser === false && controlPlaneBlocked(command)) {
+      await this.ensure(userId);
+      throw new BoatFailure("Boat browser control is off for the private pilot.");
+    }
     const row = await this.ensure(userId);
     if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
     await this.guardUsage(row);
@@ -148,7 +160,7 @@ export class BoatSandboxManager {
       const result = await withSignal(
         this.options.client.command({
           sandboxId: row.sandboxId,
-          command,
+          command: limitCommand(command),
           cwd: REMOTE_PREFIX,
           timeoutSeconds,
         }),
@@ -268,6 +280,10 @@ export class BoatSandboxManager {
   }
 
   async desktop(userId: string, taskId: string, tool: string, args: Record<string, unknown>): Promise<DesktopObservation> {
+    if (this.options.vmBrowser === false && desktopStartsBrowser(tool, args)) {
+      await this.ensure(userId);
+      throw new BoatFailure("Boat browser control is off for the private pilot.");
+    }
     const row = await this.ensure(userId);
     if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
     if (!this.options.db.tryDesktopLock(row.sandboxId, taskId, 90_000)) {
@@ -300,6 +316,10 @@ export class BoatSandboxManager {
     steps: Array<{ tool: string; args: Record<string, unknown> }>,
   ): Promise<Array<{ tool: string; ok: boolean; detail: string }>> {
     if (steps.length === 0 || steps.length > 8) throw new BoatFailure("desktop sequence needs 1 to 8 steps");
+    if (this.options.vmBrowser === false && steps.some((step) => desktopStartsBrowser(step.tool, step.args))) {
+      await this.ensure(userId);
+      return [{ tool: steps[0]?.tool ?? "desktop", ok: false, detail: "Boat browser control is off for the private pilot." }];
+    }
     const allowed = new Set(["click", "type_text", "press_key", "hotkey", "bring_to_front"]);
     const row = await this.ensure(userId);
     if (!row.sandboxId) throw new BoatFailure("boat sandbox is missing");
@@ -348,6 +368,9 @@ export class BoatSandboxManager {
       if (!this.schemasLoaded) this.rememberSchemas(await this.options.client.desktop(row.sandboxId, "tools/list", {}));
       const sandboxId = row.sandboxId;
       const call = async (tool: string, args: Record<string, unknown>) => {
+        if (this.options.vmBrowser === false && desktopStartsBrowser(tool, args)) {
+          throw new BoatFailure("Boat browser control is off for the private pilot.");
+        }
         let next = args;
         if (tool !== "tools/list") {
           const fitted = fitArguments(this.schemas.get(tool), args);
@@ -588,8 +611,26 @@ export class BoatSandboxManager {
       lastError: null,
       touch: true,
     });
+    await this.sealClosedBrowser(sandboxId);
     this.seen.set(userId, Date.now());
     return saved;
+  }
+
+  private async sealClosedBrowser(sandboxId: string): Promise<void> {
+    if (this.options.vmBrowser !== false || this.sealed.has(sandboxId)) return;
+    this.sealed.add(sandboxId);
+    try {
+      const result = await this.options.client.command({
+        sandboxId,
+        command: browserSealCommand(),
+        cwd: REMOTE_PREFIX,
+        timeoutSeconds: 20,
+      });
+      if (result.exitCode !== 0) throw new BoatFailure(result.stderr || "browser seal failed");
+    } catch (error) {
+      this.sealed.delete(sandboxId);
+      throw error instanceof BoatFailure ? error : new BoatFailure(messageOf(error));
+    }
   }
 
   private async guardUsage(row: ComputerBinding): Promise<void> {

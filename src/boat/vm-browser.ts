@@ -95,6 +95,18 @@ export function vmBrowserServeCommand(): string {
   return `printf %s ${quoteShell(encoded)} | base64 -d > /home/user/linco/.linco/serve.sh && sh /home/user/linco/.linco/serve.sh`;
 }
 
+/** Runs once when the pilot browser is off. It does not pass through the user-command denylist. */
+export function browserSealCommand(): string {
+  return [
+    "killall -q chrome google-chrome google-chrome-stable chromium chromium-browser chrome-headless-shell >/dev/null 2>&1 || true",
+    "rm -f /home/user/.linco/browser.sock /home/user/linco/.linco/browser.sock",
+    "mkdir -p /home/user/.linco",
+    "chmod 700 /home/user/.linco",
+    "if [ -e /home/user/linco/.linco/chrome-profile ]; then chmod -R a-rwx /home/user/linco/.linco/chrome-profile || true; fi",
+    "true",
+  ].join("\n");
+}
+
 export function vmBrowserCallCommand(request: VmBrowserRequest): string {
   const encoded = Buffer.from(JSON.stringify(request)).toString("base64");
   return `node ${SCRIPT_PATH} call ${quoteShell(encoded)}`;

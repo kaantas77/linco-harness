@@ -1,0 +1,44 @@
+{
+  "phase": 12,
+  "base": "8eea783",
+  "publicReady": false,
+  "verdict": "NO-GO",
+  "deployed": false,
+  "performanceClaim": "none",
+  "app": {
+    "path": "/Users/kaantas/weblinco",
+    "screensChanged": false,
+    "wired": false,
+    "identity": "none",
+    "messageRoute": "app/(agent)/api/agent/route.ts",
+    "chatEntry": "app/(agent)/page.tsx"
+  },
+  "serverMap": {
+    "route": "POST /v1/app/messages",
+    "tokenInResponse": false,
+    "userTokenOnAppRoute": 403
+  },
+  "flows": [
+    { "name": "message", "status": "succeeded", "evidenceRuns": 0 },
+    { "name": "same-session", "status": "succeeded", "sameSession": true },
+    { "name": "sse-reconnect", "status": "succeeded" },
+    { "name": "code-run", "status": "succeeded", "exitCode": 0, "stdout": "PHASE112-RUN", "path": "proof/app-112.mjs" },
+    { "name": "boat-file", "status": "succeeded", "text": "PHASE112-FILE", "survivedStop": true, "otherUser": "file not found" },
+    { "name": "approve", "status": "succeeded" },
+    { "name": "deny", "status": "failed" },
+    { "name": "cancel", "status": "cancelled" },
+    { "name": "worker-restart", "status": "succeeded" },
+    { "name": "isolation", "otherUserTask": 404, "userTokenOnAppRoute": 403 }
+  ],
+  "browser": {
+    "vmBrowser": false,
+    "desktopLaunch": "refused",
+    "shellLaunch": "refused",
+    "codeLaunch": "refused",
+    "batchLaunch": "refused",
+    "seal": "killall and both socket paths",
+    "sameUid": "open",
+    "redirects": "not retested",
+    "dnsRebinding": "not retested"
+  }
+}

@@ -108,9 +108,10 @@ export function toolsForPrompt(host: ToolHost, prompt: string): AgentTool[] {
     const withGoal = sessionHasPlan(prompt) ? [...desktop, ...goalTools(host)] : desktop;
     return toolsForRoute(withGoal, host.toolProfile);
   }
-  if (!sessionHasBrowser(prompt)) return base;
+  const local = [...base, codeWriteRunTool(host)];
+  if (!sessionHasBrowser(prompt)) return toolsForRoute(local, host.toolProfile);
   const browser = browserTools(host);
-  const withBrowser = sessionHasJev(prompt) ? [...base, ...browser, ...jevTools(host)] : [...base, ...browser];
-  if (!sessionHasPlan(prompt)) return withBrowser;
-  return [...withBrowser, ...goalTools(host)];
+  const withBrowser = sessionHasJev(prompt) ? [...local, ...browser, ...jevTools(host)] : [...local, ...browser];
+  const withGoal = sessionHasPlan(prompt) ? [...withBrowser, ...goalTools(host)] : withBrowser;
+  return toolsForRoute(withGoal, host.toolProfile);
 }

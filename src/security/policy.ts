@@ -92,9 +92,36 @@ export function assessShell(command: string, workspaceRoot: string): Assessment 
   return { action: "allow", risk: "exec" };
 }
 
-/** The browser control socket, its directory, and metadata addresses. */
+const BROWSER_BIN = /\b(google-chrome(?:-stable)?|chromium(?:-browser)?|chrome-headless-shell)\b/i;
+
+/** The browser control socket, a Chrome launch, and metadata addresses. */
 export function controlPlaneBlocked(command: string): boolean {
-  return /browser\.sock|vm-browser\.mjs|chrome-profile|remote-debugging|169\.254\.169\.254|metadata\.google(?:\.internal)?|\/\.linco(?:\/|\s|$)/i.test(command);
+  return BROWSER_BIN.test(command) || /browser\.sock|vm-browser\.mjs|chrome-profile|remote-debugging|169\.254\.169\.254|metadata\.google(?:\.internal)?|\/\.linco(?:\/|\s|$)/i.test(command);
+}
+
+export function browserAppName(value: string): boolean {
+  return /chrome|chromium/i.test(value);
+}
+
+/** Boat browser tools and desktop launches. Host Playwright tools keep their own rules. */
+export function boatBrowserBlocked(toolName: string, args: unknown): boolean {
+  if (toolName === "desktop_browser" || toolName.startsWith("vm_browser_")) return true;
+  if (toolName === "desktop_window") return browserAppName(readApp(args));
+  if (toolName === "desktop_batch") return /chrome|chromium|launch_app/i.test(JSON.stringify(args ?? ""));
+  if (toolName === "shell_exec" || toolName === "code_write_run") return controlPlaneBlocked(`${readCommand(args)}\n${readSource(args)}`);
+  return false;
+}
+
+export function desktopStartsBrowser(tool: string, args: Record<string, unknown>): boolean {
+  if (tool === "browser_navigate" || tool === "browser_prepare" || tool === "get_browser_state") return true;
+  if (tool !== "launch_app") return false;
+  return browserAppName(JSON.stringify(args));
+}
+
+function readApp(args: unknown): string {
+  if (!args || typeof args !== "object") return "";
+  const app = (args as { app?: unknown }).app;
+  return typeof app === "string" ? app : "";
 }
 
 function isHardDenied(command: string): boolean {
