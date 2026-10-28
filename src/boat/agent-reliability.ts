@@ -234,7 +234,7 @@ async function securityRows(report: ReliabilityReport, manager: BoatSandboxManag
   const portClosed = /port 9333 closed/.test(debug.stdout) && !/200/.test(debug.stdout);
   report.rows.push({ name: "cdp tcp 9333", mode: "security", category: "cdp", ok: portClosed, status: "tool", evidence: clip(debug.stdout || debug.stderr) });
   if (!portClosed) report.blockers.push("The shell still reached a TCP debug port on 127.0.0.1:9333.");
-  const identity = await manager.run(userId, "id -u; id -un; ls -l /home/user/linco/.linco/browser.sock 2>/dev/null || echo 'no control socket'", 15_000).catch((error) => ({ stdout: "", stderr: errorText(error), exitCode: 1 }));
+  const identity = await manager.run(userId, "id -u; id -un; ls -l /home/user/.linco/browser.sock 2>/dev/null || echo 'no control socket'", 15_000).catch((error) => ({ stdout: "", stderr: errorText(error), exitCode: 1 }));
   report.rows.push({ name: "same user socket", mode: "security", category: "cdp", ok: false, status: "tool", evidence: clip(identity.stdout || identity.stderr) });
   report.blockers.push("The shell and Chrome share uid 1000. The same user can still open the control socket or start its own Chrome. Loopback TCP 9333 is closed; that does not make the browser a separate trust domain. Public use is NO-GO.");
   report.blockers.push("The egress proxy pins the first DNS answer for proxied requests. It does not prove every subresource and does not re-check DNS after a TTL change.");

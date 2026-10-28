@@ -19,7 +19,7 @@ import { BoatSandboxManager } from "../boat/manager.js";
 import { modelAcceptsImages } from "../boat/vision.js";
 import { SkillCatalog } from "../skills/catalog.js";
 import { attributeParentTool, goalSuccessBlock } from "./goal.js";
-import { contractForPrompt, missingEvidence } from "./evidence.js";
+import { contractForPrompt, missingEvidence, programRunFromDetails, type ProgramRun } from "./evidence.js";
 import { recoveryDecision } from "./lease.js";
 import { routeExecution, type ToolProfile } from "./route.js";
 import { childReport, dropTrailingAssistantError, rewriteWaitResults } from "./children.js";
@@ -37,8 +37,8 @@ export interface HarnessOptions {
   config: LincoConfig;
   streamFn?: StreamFn;
   model?: Model<Api>;
-  /** Test double. Production builds the Boat client from BOAT_API_KEY. */
-  boat?: BoatSandboxManager;
+  /** Test double. Production builds the Boat client from BOAT_API_KEY. A function receives the harness database. */
+  boat?: BoatSandboxManager | ((db: LincoDb) => BoatSandboxManager);
   /** How long to wait for a Boat sandbox to become ready. */
   boatReadyTimeoutMs?: number;
 }
@@ -70,7 +70,7 @@ export class Harness {
     this.computer = new LocalComputerProvider(this.config.sandbox);
     this.browser = new HttpBrowserProvider({ allowLoopback: this.config.allowLoopback });
     if (options.boat) {
-      this.boat = options.boat;
+      this.boat = typeof options.boat === "function" ? options.boat(this.db) : options.boat;
     } else if (this.config.computer === "boat") {
       if (!this.config.boatApiKey) throw new Error("BOAT_API_KEY is not set");
       this.boat = new BoatSandboxManager({
@@ -81,6 +81,7 @@ export class Harness {
         idleStopMs: this.config.boatIdleStopMs,
         maxSeconds: this.config.boatMaxSeconds,
         allowLoopback: this.config.allowLoopback,
+        vmBrowser: this.config.vmBrowser,
         ...(options.boatReadyTimeoutMs ? { readyTimeoutMs: options.boatReadyTimeoutMs } : {}),
       });
     } else {
@@ -345,7 +346,7 @@ export class Harness {
       if (!this.db.renewLease(task.id, task.fence, workerId, this.config.leaseMs)) abort.abort();
     }, Math.max(50, this.config.heartbeatMs));
     beat.unref?.();
-    const run = { waitingApproval: false, firstResponseMs: task.firstResponseMs ?? undefined, turn: 0 };
+    const run = { waitingApproval: false, firstResponseMs: task.firstResponseMs ?? undefined, turn: 0, budgetStop: "" };
     const waiting = new Set<string>();
     const started = Date.now();
     let agent: Agent | undefined;
@@ -376,7 +377,7 @@ export class Harness {
       }
       const llm = await this.llm();
       if (this.boat) await this.boat.ensure(task.userId);
-      const bound = this.boat ? bindBoat(this.boat, { userId: task.userId, taskId: task.id, acceptsImages: modelAcceptsImages(llm.model) }) : undefined;
+      const bound = this.boat ? bindBoat(this.boat, { userId: task.userId, taskId: task.id, acceptsImages: modelAcceptsImages(llm.model), vmBrowser: this.config.vmBrowser }) : undefined;
       const workspaceRoot = bound?.workspacePath ?? session.workspacePath;
       const host: ToolHost = {
         workspaceRoot,
@@ -390,7 +391,7 @@ export class Harness {
         browser: bound?.browser ?? this.browser,
         computer: bound?.computer ?? this.computer,
         files: bound?.files ?? localFiles(session.workspacePath),
-        ...(bound ? { desktop: bound.desktop, vmBrowser: bound.vmBrowser } : {}),
+        ...(bound ? { desktop: bound.desktop, ...(bound.vmBrowser ? { vmBrowser: bound.vmBrowser } : {}) } : {}),
         ...(task.checkpoint?.toolProfile ? { toolProfile: task.checkpoint.toolProfile } : {}),
         signal: abort.signal,
         claim,
@@ -499,6 +500,12 @@ export class Harness {
             costUsd: usage.cost.total,
             claim,
           });
+          const spent = this.db.usageSummary(task.id);
+          const tokens = spent.inputTokens + spent.outputTokens + spent.cacheReadTokens + spent.cacheWriteTokens;
+          if (spent.costUsd > this.config.taskMaxCostUsd || tokens > this.config.taskMaxTokens) {
+            run.budgetStop = `Task budget exceeded (${spent.costUsd.toFixed(6)} USD, ${tokens} tokens).`;
+            abort.abort();
+          }
           run.turn += 1;
         }
         if (event.type === "tool_execution_start") {
@@ -528,6 +535,7 @@ export class Harness {
               isError: event.isError,
               durationMs: event.durationMs ?? null,
               result: resultNote(event.result),
+              ...storedRun(event.result),
               ...(goalStepId ? { goalStepId } : {}),
             },
           });
@@ -552,6 +560,10 @@ export class Harness {
         } else await agent.prompt(feedback);
         if (!owns()) return;
         this.persist(agent, session.id, task.prompt, claim);
+        if (run.budgetStop) {
+          this.db.finishTask(task.id, "failed", { error: run.budgetStop, firstResponseMs: run.firstResponseMs }, claim);
+          return;
+        }
         if (abort.signal.aborted) {
           if (owns()) {
             this.cancelFamily(task.id);
@@ -624,6 +636,10 @@ export class Harness {
         this.db.setTranscript(task.sessionId, messages, task.prompt.slice(0, 80), claim);
       }
       const message = caught instanceof Error ? caught.message : String(caught);
+      if (run.budgetStop) {
+        this.db.finishTask(task.id, "failed", { error: run.budgetStop, firstResponseMs: run.firstResponseMs }, claim);
+        return;
+      }
       if (abort.signal.aborted) {
         this.cancelFamily(task.id);
         this.db.finishTask(task.id, "cancelled", { error: message, firstResponseMs: run.firstResponseMs }, claim);
@@ -649,14 +665,15 @@ export class Harness {
     const traces = this.db.listTraces(task.id);
     const tools = traces.flatMap((trace) => {
       if (trace.kind !== "tool") return [];
-      const data = trace.data as { phase?: string; isError?: boolean; result?: string; toolCallId?: string };
+      const data = trace.data as { phase?: string; isError?: boolean; result?: string; toolCallId?: string; run?: unknown };
       if (data.phase !== "end") return [];
       const start = traces.find((item) => {
         const prior = item.data as { phase?: string; toolCallId?: string; args?: string };
         return item.kind === "tool" && item.name === trace.name && prior.phase === "start" && prior.toolCallId === data.toolCallId;
       });
       const args = (start?.data as { args?: string } | undefined)?.args ?? "";
-      return [{ name: trace.name, isError: data.isError === true, args, result: data.result ?? "" }];
+      const runRecord = programRunFromDetails(data.run);
+      return [{ name: trace.name, isError: data.isError === true, args, result: data.result ?? "", ...(runRecord ? { run: runRecord } : {}) }];
     });
     let pageUrl = "";
     let pageTitle = "";
@@ -744,6 +761,12 @@ export class Harness {
     if (!task) throw new Error(`unknown task ${taskId}`);
     return task;
   }
+}
+
+function storedRun(result: unknown): { run: ProgramRun } | undefined {
+  if (!result || typeof result !== "object") return undefined;
+  const run = programRunFromDetails((result as { details?: unknown }).details);
+  return run ? { run } : undefined;
 }
 
 function argNote(args: unknown): string {

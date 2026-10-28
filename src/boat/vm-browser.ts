@@ -75,7 +75,9 @@ export function vmBrowserInstallCommand(): string {
 export function vmBrowserServeCommand(): string {
   const script = [
     `if node ${SCRIPT_PATH} ping; then exit 0; fi`,
-    "rm -f /home/user/linco/.linco/browser.sock",
+    "mkdir -p /home/user/.linco",
+    "chmod 700 /home/user/.linco",
+    "rm -f /home/user/.linco/browser.sock",
     "DISPLAY=${DISPLAY:-:0}",
     "export DISPLAY",
     `nohup node ${SCRIPT_PATH} serve >> /home/user/linco/.linco/browser.log 2>&1 &`,

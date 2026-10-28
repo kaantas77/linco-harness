@@ -93,6 +93,6 @@ export function text(value: string, details: Record<string, unknown> = {}) {
   return { content: [{ type: "text" as const, text: value }], details };
 }
 
-export function error(value: string) {
-  return { content: [{ type: "text" as const, text: value }], details: {}, isError: true };
+export function error(value: string, details: Record<string, unknown> = {}) {
+  return { content: [{ type: "text" as const, text: value }], details, isError: true };
 }

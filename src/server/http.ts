@@ -1,10 +1,12 @@
 import http from "node:http";
+import { contractForPrompt, programRunFromDetails } from "../agent/evidence.js";
 import type { Harness } from "../agent/runtime.js";
 import { projectMessages } from "../agent/transcript.js";
 import { loopbackHost } from "../config.js";
 import { toNemoTrace } from "../observe/nemo.js";
+import { redactSecrets } from "../security/redact.js";
 import { hashToken, newToken } from "../security/tokens.js";
-import type { AutomationKind, MemoryKind } from "../types.js";
+import type { AutomationKind, MemoryKind, Task } from "../types.js";
 
 type Principal = { kind: "dev" } | { kind: "bootstrap" } | { kind: "user"; userId: string };
 
@@ -57,6 +59,8 @@ export class HarnessServer {
         model: this.harness.config.model,
         workers: this.harness.config.workerCount,
         deepseekConfigured: Boolean(this.harness.config.apiKey),
+        vmBrowser: this.harness.config.vmBrowser,
+        publicReady: false,
       });
       return;
     }
@@ -81,7 +85,10 @@ export class HarnessServer {
     const taskCancel = match(path, "/v1/tasks/:id/cancel");
     const taskApprove = match(path, "/v1/tasks/:id/approve");
     const taskObserve = match(path, "/v1/tasks/:id/observe");
+    const taskEvents = match(path, "/v1/tasks/:id/events");
+    const taskEvidence = match(path, "/v1/tasks/:id/evidence");
     const task = match(path, "/v1/tasks/:id");
+    const userUsage = match(path, "/v1/users/:id/usage");
     const memories = match(path, "/v1/users/:id/memories");
     const computer = match(path, "/v1/users/:id/computer");
     const memory = match(path, "/v1/memories/:id");
@@ -136,13 +143,8 @@ export class HarnessServer {
       send(response, 202, taskRecord);
       return;
     }
-    if (method === "GET" && task && !taskCancel && !taskApprove && !taskObserve) {
-      const found = this.ownedTask(principal, idOf(task));
-      send(response, 200, {
-        task: found,
-        approvals: this.harness.db.listApprovals(found.id),
-        usage: this.harness.db.usageSummary(found.id),
-      });
+    if (method === "GET" && task && !taskCancel && !taskApprove && !taskObserve && !taskEvents && !taskEvidence) {
+      send(response, 200, this.taskView(this.ownedTask(principal, idOf(task))));
       return;
     }
     if (method === "POST" && taskCancel) {
@@ -160,7 +162,30 @@ export class HarnessServer {
     }
     if (method === "GET" && taskObserve) {
       const found = this.ownedTask(principal, idOf(taskObserve));
-      send(response, 200, toNemoTrace(this.harness.db, found.id));
+      send(response, 200, redactJson(toNemoTrace(this.harness.db, found.id)));
+      return;
+    }
+    if (method === "GET" && taskEvidence) {
+      send(response, 200, this.taskView(this.ownedTask(principal, idOf(taskEvidence))));
+      return;
+    }
+    if (method === "GET" && taskEvents) {
+      const found = this.ownedTask(principal, idOf(taskEvents));
+      await this.streamTask(request, response, found.id);
+      return;
+    }
+    if (method === "GET" && userUsage) {
+      this.owns(principal, idOf(userUsage));
+      const userId = idOf(userUsage);
+      send(response, 200, {
+        usage: this.harness.db.usageForUser(userId),
+        limits: {
+          activeVmPerUser: 1,
+          taskMaxTokens: this.harness.config.taskMaxTokens,
+          taskMaxCostUsd: this.harness.config.taskMaxCostUsd,
+          idleStopMs: this.harness.config.boatIdleStopMs,
+        },
+      });
       return;
     }
     if (method === "GET" && computer) {
@@ -262,6 +287,50 @@ export class HarnessServer {
   private owns(principal: Principal, userId: string): void {
     if (principal.kind === "dev") return;
     if (principal.kind !== "user" || principal.userId !== userId) throw new HttpError(404, "not found");
+  }
+
+  private taskView(task: Task) {
+    const traces = this.harness.db.listTraces(task.id);
+    const runs = traces.flatMap((trace) => {
+      if (trace.kind !== "tool") return [];
+      const data = trace.data as { phase?: string; isError?: boolean; run?: unknown };
+      if (data.phase !== "end") return [];
+      const run = programRunFromDetails(data.run);
+      return [{ name: trace.name, isError: data.isError === true, ...(run ? { run } : {}) }];
+    });
+    return redactJson({
+      task,
+      approvals: this.harness.db.listApprovals(task.id),
+      usage: this.harness.db.usageSummary(task.id),
+      children: this.harness.db.listChildren(task.id),
+      traces,
+      evidence: { contract: contractForPrompt(task.prompt), runs },
+    });
+  }
+
+  private async streamTask(request: http.IncomingMessage, response: http.ServerResponse, taskId: string): Promise<void> {
+    response.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    const terminal = new Set(["succeeded", "failed", "cancelled", "needs_inspection"]);
+    let closed = false;
+    const stop = () => {
+      closed = true;
+    };
+    request.on("close", stop);
+    response.on("close", stop);
+    for (let attempt = 0; attempt < 150 && !closed; attempt += 1) {
+      const current = this.harness.db.getTask(taskId);
+      const payload = current
+        ? { id: current.id, status: current.status, error: current.error, resultText: current.resultText }
+        : { id: taskId, status: "failed", error: "task not found" };
+      response.write(`data: ${redactSecrets(JSON.stringify(payload))}\n\n`);
+      if (!current || terminal.has(current.status)) break;
+      await sleep(200);
+    }
+    if (!closed) response.end();
   }
 
   private ownedTask(principal: Principal, id: string) {
@@ -366,6 +435,14 @@ function memoryKind(value: string): MemoryKind {
 function automationKind(value: string): AutomationKind {
   if (value === "cron" || value === "heartbeat" || value === "webhook") return value;
   throw new HttpError(400, "invalid automation kind");
+}
+
+function redactJson<T>(value: T): T {
+  return JSON.parse(redactSecrets(JSON.stringify(value))) as T;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function send(response: http.ServerResponse, status: number, body: unknown): void {

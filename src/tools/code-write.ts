@@ -2,7 +2,7 @@ import path from "node:path";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import { quoteShell, workspaceRelative } from "../boat/paths.js";
-import { assessShell } from "../security/policy.js";
+import { assessShell, controlPlaneBlocked } from "../security/policy.js";
 import { defineTool } from "./define.js";
 import { error, text } from "./files.js";
 import { localFiles } from "./local-files.js";
@@ -32,6 +32,9 @@ export function codeWriteRunTool(host: ToolHost): AgentTool {
       const command = (params.command?.trim() || defaultCommand(host.workspaceRoot, relative)).trim();
       const base = relative.split("/").pop() ?? "";
       if (!base || !command.includes(base)) return error("the command does not run this file");
+      if (controlPlaneBlocked(params.source) || controlPlaneBlocked(command) || controlPlaneBlocked(relative)) {
+        return error("Command is blocked by Linco policy.");
+      }
       const assessment = assessShell(command, host.workspaceRoot);
       if (assessment.action === "deny") return error(assessment.reason);
       try {
@@ -43,8 +46,15 @@ export function codeWriteRunTool(host: ToolHost): AgentTool {
           signal: host.signal,
         });
         const body = [`exit ${result.exitCode}${result.timedOut ? " timeout" : ""}`, result.stdout, result.stderr].filter((part) => part.trim()).join("\n");
-        if (result.timedOut || result.exitCode !== 0) return error(body || "command failed");
-        return text(body || "exit 0", { exitCode: result.exitCode, path: relative });
+        const details = {
+          exitCode: result.exitCode,
+          timedOut: result.timedOut,
+          stdout: result.stdout.slice(0, 2_000),
+          path: relative,
+          command,
+        };
+        if (result.timedOut || result.exitCode !== 0) return error(body || "command failed", details);
+        return text(body || "exit 0", details);
       } catch (caught) {
         return error(caught instanceof Error ? caught.message : String(caught));
       }

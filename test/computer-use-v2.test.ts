@@ -18,6 +18,8 @@ describe("boat vm browser", () => {
     expect(script).toContain("Accessibility.getFullAXTree");
     expect(script).not.toContain("connectOverCDP");
     expect(script).toContain("/home/user/linco/.linco/chrome-profile");
+    expect(script).toContain("/home/user/.linco/browser.sock");
+    expect(script).not.toContain("/home/user/linco/.linco/browser.sock");
     expect(script).toContain("--remote-debugging-pipe");
     expect(script).toContain("--proxy-server=");
     expect(script).not.toContain("--remote-debugging-port");

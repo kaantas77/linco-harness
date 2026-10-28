@@ -211,6 +211,8 @@ Faz 10.5 `8683678` üstüne geldi. Yayımlanan matris `bx_thha4kef` üzerinde bi
 
 Faz 10.6 `aee60fc` üstüne geldi. Teşhis `bx_kvp7mkx3` üzerinde bitti ve makine silindi. Süre 216866 ms. DeepSeek $0.045048. Boat $0.00106. Taze masaüstü oturumunda araçlar sunuldu, `priorMessages` 0 idi ve ilk duruş `toolUse` oldu. Model `desktop_click` ve `desktop_type` çağırdı. Sürücü pencere kimliği olmayan tıklamayı ve pid 0 ile yazmayı reddetti. Düzeltme modele ulaştı ve tur bütçesi bitmemişti. Aynı masaüstü oturumunda 87 eski mesaj vardı ve gözlem sınırında görev hâlâ `running` idi. Taze kod oturumu `fs_write` ve `shell_exec` çağırdı. `node proof/diag-code.mjs` çıkış kodu 0 verdi ve stdout jetonu içerdi. Aynı kod oturumu bunu yine yaptı. Faz 10.5 kod kaçı, boş araç listesi değildi. Yayımlanan matris `bx_av5296mb` silindi. Süre 343153 ms. DeepSeek $0.026415. Boat $0.0017. Kontrollü `desktop_edit_file` yolu `click` ve `type_text` sonrası `cat` ile `PHASE106-CONTROL-DESK` okudu. Kontrollü `code_write_run` çıkış 0 ve `PHASE106-CONTROL-RUN` döndürdü. Doğal dil masaüstü 10/10. Kod 9/10. Kod ifadeleri 5/5. Masaüstü ifadeleri, başarısız bir `desktop_edit_file` çağrısından sonra yol ve metni söyleyen tek düzeltmeyle `bx_hk45dneg` üzerinde 5/5 oldu. O makine de silindi. Süre 115829 ms. DeepSeek $0.006904. Boat $0.00056. Bir satır, dosya ve stdout jetonu taşısa da görev durumu `failed` kaldığı için 9/10 içindedir ve `succeeded` sayılmaz. Bu bir fatura dökümü veya sıralama değildir. Herkese açık kullanıma hazır değildir. Ayrıntı `reports/action-execution.md` içindedir.
 
+Faz 11 `aaf3211` üstüne geldi. Yeni bir canlı makine açılmadı. 10/10, 9/10 ve 5/5 durur. Kod satırının `failed` kalmasının nedeni, doğrulayıcının 240 karaktere kırpılmış araç metninde `exit 0` aramasıydı. İz artık sürecin `exitCode`, `timedOut`, `stdout`, `path` ve `command` alanlarını taşır. Metin eşleşmesi başarı sayılmaz. API sözleşmesi `docs/API.md` içindedir. Örnek istemci `src/client/linco.ts` yoklamayı kullanır. `GET /v1/tasks/:id/events` aynı durumu SSE olarak yazar. Mevcut uygulamanın kodu bu depoda olmadığı için o uygulamaya dokunulmadı. `LINCO_VM_BROWSER` kapalıdır. Görev başına token ve USD tavanı, kullanıcı başına tek makine, boşta durdurma ve kira kurtarması durur. SQLite yolu `LINCO_DATA_DIR/linco.sqlite`. Railway planı `docs/INTEGRATION.md` içindedir ve dağıtım yapılmadı. Herkese açık kullanıma hazır değildir. Ayrıntı `reports/backend-integration.md` ve `reports/pilot-security.md` içindedir.
+
 12. Bellek. Kelime seçimi yetmezse kullanıcıya görünür düzenleme ekranı ve daha isabetli seçim ekle. Tüm belleği system prompt'a basma. O, cache'i ve faturayı bozar.
 
 13. Otomasyon. UTC cron yetiyor. Saat dilimi ve gerçek bildirim (webhook çıkışı) ancak bir kullanıcı senaryosu varsa gelsin.
@@ -264,6 +266,11 @@ Sunucu `127.0.0.1:8787`. Worker sayısı `LINCO_WORKERS`. Veri dizini `LINCO_DAT
 - `reports/security-gates.md` — Faz 10.5, herkese açık kullanım NO-GO
 - `reports/action-execution.json`, `reports/action-execution.md` — Faz 10.6, `bx_av5296mb`, `performanceClaim: none`
 - `reports/action-diagnosis.json` — Faz 10.6 teşhisi, `bx_kvp7mkx3`
+- `reports/backend-integration.md` — Faz 11 API sözleşmesi ve kod kanıtı
+- `reports/pilot-security.md` — Faz 11, herkese açık kullanım NO-GO
+- `docs/API.md`, `docs/INTEGRATION.md` — mevcut uygulamanın çağıracağı sözleşme
+- `src/client/linco.ts` — yoklayan örnek istemci
+- `test/backend-api.test.ts` — görev yaşamı, onay, maliyet, kurtarma ve kullanıcı ayrımı
 - `src/boat/pilot-readiness.ts` — dosya kanalı, on masaüstü kaydı ve ayrı doğal dil satırları
 - `src/boat/probe.ts` — `sandbox_direct_failed` sınıfı
 - `src/boat/release-candidate.ts` — CDP ref alt kümesi. Anahtarsız canlı başarı yazmaz

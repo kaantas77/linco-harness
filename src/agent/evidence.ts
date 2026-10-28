@@ -9,11 +9,21 @@ export interface ExecutionContract {
   expectUrlIncludes?: string;
 }
 
+/** Fields copied from the tool result. The clipped result text is not this record. */
+export interface ProgramRun {
+  exitCode: number;
+  timedOut: boolean;
+  stdout: string;
+  path?: string;
+  command?: string;
+}
+
 export interface ToolUse {
   name: string;
   isError: boolean;
   args?: string;
   result?: string;
+  run?: ProgramRun;
 }
 
 export interface EvidenceView {
@@ -109,16 +119,14 @@ export function missingEvidence(contract: ExecutionContract, view: EvidenceView)
     return null;
   }
   if (contract.kind === "code-run") {
-    const base = contract.file?.split("/").pop() ?? "";
-    const ran = view.tools.some((tool) => {
-      if (tool.isError || (tool.name !== "code_write_run" && tool.name !== "shell_exec")) return false;
-      const blob = `${tool.args ?? ""}\n${tool.result ?? ""}`;
-      if (!base || !blob.includes(base)) return false;
-      if (contract.token && !blob.includes(contract.token)) return false;
-      if (/timeout/i.test(blob)) return false;
-      return /exit 0\b/.test(blob) && !/exit [1-9]/i.test(blob);
-    });
-    if (ran) return null;
+    const proved = view.tools.some((tool) => provedProgram(contract, tool));
+    if (proved) {
+      if (view.fileError && /no such file|not found|cannot stat/i.test(view.fileError)) {
+        return { missing: `The program file ${contract.file ?? ""} is missing.`, uncertain: false, retry: false };
+      }
+      if (view.fileError) return { missing: `The program file could not be read: ${view.fileError}`, uncertain: true, retry: false };
+      return null;
+    }
     const attempted = view.tools.some((tool) => tool.name === "code_write_run" || tool.name === "shell_exec");
     return {
       missing: `Call code_write_run once with path ${contract.file ?? ""} and source that prints ${contract.token ?? ""}. A failed command does not count.`,
@@ -136,4 +144,40 @@ export function missingEvidence(contract: ExecutionContract, view: EvidenceView)
     return { missing: "A failed or cancelled child is not success.", uncertain: false, retry: false };
   }
   return null;
+}
+
+/** Read the tool's own details. A sentence that says "exit 0" is not a run record. */
+export function programRunFromDetails(details: unknown): ProgramRun | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  const record = details as Record<string, unknown>;
+  if (typeof record.exitCode !== "number" || !Number.isInteger(record.exitCode)) return undefined;
+  const run: ProgramRun = {
+    exitCode: record.exitCode,
+    timedOut: record.timedOut === true,
+    stdout: typeof record.stdout === "string" ? record.stdout.slice(0, 2_000) : "",
+  };
+  if (typeof record.path === "string" && record.path) run.path = record.path.slice(0, 240);
+  if (typeof record.command === "string" && record.command) run.command = record.command.slice(0, 500);
+  return run;
+}
+
+function provedProgram(contract: ExecutionContract, tool: ToolUse): boolean {
+  if (tool.isError || (tool.name !== "code_write_run" && tool.name !== "shell_exec")) return false;
+  const run = tool.run;
+  if (!run || run.timedOut || run.exitCode !== 0) return false;
+  const base = contract.file?.split("/").pop() ?? "";
+  if (!base) return false;
+  const targeted = (run.path !== undefined && fileBase(run.path) === base) || (run.command !== undefined && commandNamesFile(run.command, base));
+  if (!targeted) return false;
+  if (contract.token && !run.stdout.includes(contract.token)) return false;
+  return true;
+}
+
+function commandNamesFile(command: string, base: string): boolean {
+  return command.split(/[\s"'`]+/).some((token) => token.length > 0 && fileBase(token) === base);
+}
+
+function fileBase(value: string): string {
+  const cleaned = value.replaceAll("\\", "/").replace(/[),;]+$/g, "");
+  return cleaned.split("/").pop() ?? "";
 }

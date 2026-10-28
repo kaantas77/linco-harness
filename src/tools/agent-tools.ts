@@ -152,8 +152,14 @@ export function shellTool(host: ToolHost): AgentTool {
       const body = [`exit ${result.exitCode}${result.timedOut ? " timeout" : ""}`, result.stdout, result.stderr]
         .filter((part) => part.trim())
         .join("\n");
-      if (result.exitCode !== 0 || result.timedOut) return error(body || "command failed");
-      return text(body || "ok", { exitCode: result.exitCode });
+      const details = {
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        stdout: result.stdout.slice(0, 2_000),
+        command: params.command.slice(0, 500),
+      };
+      if (result.exitCode !== 0 || result.timedOut) return error(body || "command failed", details);
+      return text(body || "ok", details);
     },
   });
 }

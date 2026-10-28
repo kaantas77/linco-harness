@@ -11,7 +11,7 @@ import http from "node:http";
 import net, { createConnection, createServer } from "node:net";
 
 const PROFILE = "/home/user/linco/.linco/chrome-profile";
-const SOCK = "/home/user/linco/.linco/browser.sock";
+const SOCK = "/home/user/.linco/browser.sock";
 const PROOF = "/home/user/linco/proof";
 
 let engine = "starting";
@@ -607,6 +607,7 @@ function serve() {
   ensureChrome()
     .then(() => connectEngine())
     .then(() => {
+      mkdirSync("/home/user/.linco", { recursive: true, mode: 0o700 });
       rmSync(SOCK, { force: true });
       const server = createServer((socket) => {
         let buf = "";

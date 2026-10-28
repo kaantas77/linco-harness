@@ -74,6 +74,9 @@ export function assessShell(command: string, workspaceRoot: string): Assessment 
   const trimmed = command.trim();
   if (!trimmed) return { action: "deny", risk: "exec", reason: "Empty command." };
   if (trimmed.length > 4_000) return { action: "deny", risk: "exec", reason: "Command is too long." };
+  if (controlPlaneBlocked(trimmed)) {
+    return { action: "deny", risk: "destructive", reason: "Command is blocked by Linco policy." };
+  }
   if (isHardDenied(trimmed)) {
     return { action: "deny", risk: "destructive", reason: "Command is blocked by Linco policy." };
   }
@@ -87,6 +90,11 @@ export function assessShell(command: string, workspaceRoot: string): Assessment 
     return { action: "approve", risk: "destructive", reason: "Removing files needs user approval." };
   }
   return { action: "allow", risk: "exec" };
+}
+
+/** The browser control socket, its directory, and metadata addresses. */
+export function controlPlaneBlocked(command: string): boolean {
+  return /browser\.sock|vm-browser\.mjs|chrome-profile|remote-debugging|169\.254\.169\.254|metadata\.google(?:\.internal)?|\/\.linco(?:\/|\s|$)/i.test(command);
 }
 
 function isHardDenied(command: string): boolean {

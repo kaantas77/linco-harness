@@ -45,7 +45,7 @@ describe("execution evidence", () => {
     })).toBeNull();
   });
 
-  it("does not call a code task done when the output lacks the token", () => {
+  it("accepts a code run from the structured exit code, stdout, and target file", () => {
     const contract = contractForPrompt("proof/main-105.mjs kodunu yaz ve node ile çalıştır. console.log('PHASE105-RUN')");
     const gap = missingEvidence(contract!, {
       tools: [{ name: "shell_exec", isError: false, args: "command=node proof/main-105.mjs", result: "exit 0 ok" }],
@@ -53,13 +53,38 @@ describe("execution evidence", () => {
     });
     expect(gap?.retry).toBe(false);
     expect(gap?.missing).toMatch(/code_write_run/);
-    const later = missingEvidence(contract!, {
+    const textOnly = missingEvidence(contract!, {
       tools: [
-        { name: "shell_exec", isError: true, args: "command=node proof/main-105.mjs", result: "exit 1 missing" },
+        { name: "shell_exec", isError: true, result: "exit 1 missing" },
         { name: "shell_exec", isError: false, args: "command=node proof/main-105.mjs", result: "exit 0\nPHASE105-RUN\n" },
       ],
     });
+    expect(textOnly?.retry).toBe(false);
+    const later = missingEvidence(contract!, {
+      tools: [
+        {
+          name: "shell_exec",
+          isError: true,
+          result: "exit 1\nPHASE105-RUN",
+          run: { exitCode: 1, timedOut: false, stdout: "", command: "node proof/main-105.mjs" },
+        },
+        {
+          name: "shell_exec",
+          isError: false,
+          result: "exit 1 from an older clipped line",
+          run: { exitCode: 0, timedOut: false, stdout: "PHASE105-RUN\n", command: "node proof/main-105.mjs" },
+        },
+      ],
+    });
     expect(later).toBeNull();
+    expect(missingEvidence(contract!, {
+      tools: [{
+        name: "code_write_run",
+        isError: false,
+        result: "exit 1 in the clipped text",
+        run: { exitCode: 0, timedOut: false, stdout: "PHASE105-RUN\n", path: "proof/main-105.mjs", command: "node /home/user/linco/proof/main-105.mjs" },
+      }],
+    })).toBeNull();
   });
 
   it("rejects an unrelated shell and a failed child", () => {
@@ -67,6 +92,36 @@ describe("execution evidence", () => {
     expect(missingEvidence(code!, {
       tools: [{ name: "shell_exec", isError: false, args: "command=echo PHASE105-RUN", result: "PHASE105-RUN" }],
     })?.missing).toMatch(/code_write_run/);
+    expect(missingEvidence(code!, {
+      tools: [{
+        name: "shell_exec",
+        isError: false,
+        run: { exitCode: 0, timedOut: false, stdout: "PHASE105-RUN", command: "echo PHASE105-RUN" },
+      }],
+    })?.missing).toMatch(/code_write_run/);
+    expect(missingEvidence(code!, {
+      tools: [{
+        name: "shell_exec",
+        isError: false,
+        run: { exitCode: 0, timedOut: true, stdout: "PHASE105-RUN", command: "node proof/main-105.mjs" },
+      }],
+    })?.retry).toBe(false);
+    expect(missingEvidence(code!, {
+      tools: [{
+        name: "shell_exec",
+        isError: false,
+        run: { exitCode: 0, timedOut: false, stdout: "PHASE105-RUN\n", command: "node proof/main-105.mjs" },
+      }],
+      fileError: "No such file or directory",
+    })?.uncertain).toBe(false);
+    expect(missingEvidence(code!, {
+      tools: [{
+        name: "code_write_run",
+        isError: false,
+        run: { exitCode: 0, timedOut: false, stdout: "PHASE105-RUN\n", path: "proof/main-105.mjs", command: "node proof/main-105.mjs" },
+      }],
+      fileError: "boat api 400 sandbox_direct_failed",
+    })?.uncertain).toBe(true);
     const children = contractForPrompt("İki çocuk görev başlat");
     expect(missingEvidence(children!, {
       tools: [{ name: "task_spawn", isError: false }, { name: "task_spawn", isError: false }],

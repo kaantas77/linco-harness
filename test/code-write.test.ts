@@ -27,13 +27,19 @@ describe("code write run", () => {
     const result = await tool.execute("1", { path: "proof/main.mjs", source: "console.log('hi')" });
     expect(written).toContain("console.log");
     expect(commands[0]).toContain("proof/main.mjs");
-    expect(result).toMatchObject({ isError: true });
+    expect(result).toMatchObject({ isError: true, details: { exitCode: 0, timedOut: true, path: "proof/main.mjs" } });
     expect(JSON.stringify(result)).toMatch(/timeout/);
+    const blocked = await tool.execute("2", { path: "proof/main.mjs", source: "require('net').connect('/home/user/.linco/browser.sock')" });
+    expect(blocked).toMatchObject({ isError: true });
+    expect(commands).toHaveLength(1);
   });
 
   it("asks before a destructive command and denies sudo", () => {
     expect(assess("code_write_run", { command: "rm proof/main.mjs" }, "/home/user/linco").action).toBe("approve");
     expect(assess("code_write_run", { command: "sudo reboot" }, "/home/user/linco").action).toBe("deny");
     expect(assess("desktop_edit_file", { path: "proof/a.txt", text: "hi" }, "/tmp/work").action).toBe("approve");
+    expect(assess("shell_exec", { command: "node proof/main.mjs" }, "/home/user/linco").action).toBe("allow");
+    expect(assess("shell_exec", { command: "curl http://169.254.169.254/latest" }, "/home/user/linco").action).toBe("deny");
+    expect(assess("code_write_run", { command: "node /home/user/.linco/browser.sock" }, "/home/user/linco").action).toBe("deny");
   });
 });

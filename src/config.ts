@@ -36,6 +36,11 @@ export interface LincoConfig {
   boatTtlSeconds: number;
   boatIdleStopMs: number;
   boatMaxSeconds: number;
+  /** One task stops when tokens or USD pass these ceilings. */
+  taskMaxTokens: number;
+  taskMaxCostUsd: number;
+  /** Boat Chrome stays off until the private-pilot network gates close. */
+  vmBrowser: boolean;
 }
 
 export function loopbackHost(host: string): boolean {
@@ -74,6 +79,9 @@ export function loadConfig(
     boatTtlSeconds: overrides.boatTtlSeconds ?? numberEnv(env.LINCO_BOAT_TTL_SECONDS, 3_600),
     boatIdleStopMs: overrides.boatIdleStopMs ?? numberEnv(env.LINCO_BOAT_IDLE_MS, 15 * 60_000),
     boatMaxSeconds: overrides.boatMaxSeconds ?? numberEnv(env.LINCO_BOAT_MAX_SECONDS, 7_200),
+    taskMaxTokens: overrides.taskMaxTokens ?? numberEnv(env.LINCO_TASK_MAX_TOKENS, 500_000),
+    taskMaxCostUsd: overrides.taskMaxCostUsd ?? numberEnv(env.LINCO_TASK_MAX_COST_USD, 2),
+    vmBrowser: overrides.vmBrowser ?? env.LINCO_VM_BROWSER === "1",
   };
 }
 

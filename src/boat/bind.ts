@@ -8,14 +8,14 @@ import type { VmBrowserRequest, VmBrowserResult } from "./vm-browser.js";
 
 export function bindBoat(
   manager: BoatSandboxManager,
-  input: { userId: string; taskId: string; acceptsImages: boolean },
+  input: { userId: string; taskId: string; acceptsImages: boolean; vmBrowser?: boolean },
 ): {
   workspacePath: string;
   files: WorkspaceFiles;
   computer: ComputerProvider;
   browser: BrowserProvider;
   desktop: DesktopBridge;
-  vmBrowser: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
+  vmBrowser?: { act(request: VmBrowserRequest): Promise<VmBrowserResult> };
 } {
   const files: WorkspaceFiles = {
     list: (relativePath) => manager.list(input.userId, relativePath),
@@ -46,10 +46,10 @@ export function bindBoat(
     sequence: (steps) => manager.desktopSequence(input.userId, input.taskId, steps),
     editFile: (relativePath, text) => manager.editDesktopFile(input.userId, input.taskId, relativePath, text),
   };
-  const vmBrowser = {
-    act: (request: VmBrowserRequest) => manager.browserAct(input.userId, input.taskId, request),
-  };
-  return { workspacePath: REMOTE_WORKSPACE, files, computer, browser, desktop, vmBrowser };
+  const vmBrowser = input.vmBrowser
+    ? { act: (request: VmBrowserRequest) => manager.browserAct(input.userId, input.taskId, request) }
+    : undefined;
+  return { workspacePath: REMOTE_WORKSPACE, files, computer, browser, desktop, ...(vmBrowser ? { vmBrowser } : {}) };
 }
 
 export { localFiles };

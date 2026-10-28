@@ -34,6 +34,8 @@ export interface BoatManagerOptions {
   readyTimeoutMs?: number;
   allowLoopback?: boolean;
   lookup?: (host: string) => Promise<Array<{ address: string }>>;
+  /** Unset keeps the existing browser path. `false` refuses to start Chrome. */
+  vmBrowser?: boolean;
 }
 
 export interface ComputerDescription {
@@ -443,6 +445,7 @@ export class BoatSandboxManager {
   }
 
   async browserAct(userId: string, taskId: string, request: VmBrowserRequest): Promise<VmBrowserResult> {
+    if (this.options.vmBrowser === false) throw new BoatFailure("Boat browser control is off for the private pilot.");
     if (request.op === "goto" || request.op === "fill" || request.op === "navigate" || request.op === "openRead") {
       await inspectDestination(request.url, { allowLoopback: false, lookup: this.options.lookup });
     }

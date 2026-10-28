@@ -984,25 +984,19 @@ export class LincoDb {
   }
 
   usageSummary(taskId: string): UsageSummary {
-    const rows = this.many<UsageRow>("SELECT * FROM usage_events WHERE task_id = ? ORDER BY turn_index ASC", taskId);
-    const summary: UsageSummary = {
-      turns: rows.length,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      costUsd: 0,
-      cacheHitRatio: 0,
-    };
-    for (const row of rows) {
-      summary.inputTokens += row.input_tokens;
-      summary.outputTokens += row.output_tokens;
-      summary.cacheReadTokens += row.cache_read_tokens;
-      summary.cacheWriteTokens += row.cache_write_tokens;
-      summary.costUsd += row.cost_usd;
-    }
-    summary.cacheHitRatio = cacheHitRatio(summary);
-    return summary;
+    return summarizeUsage(this.many<UsageRow>("SELECT * FROM usage_events WHERE task_id = ? ORDER BY turn_index ASC", taskId));
+  }
+
+  usageForUser(userId: string): UsageSummary {
+    return summarizeUsage(
+      this.many<UsageRow>(
+        `SELECT usage_events.input_tokens, usage_events.output_tokens, usage_events.cache_read_tokens,
+                usage_events.cache_write_tokens, usage_events.cost_usd
+         FROM usage_events JOIN tasks ON tasks.id = usage_events.task_id
+         WHERE tasks.user_id = ?`,
+        userId,
+      ),
+    );
   }
 
   private migrate(): void {
@@ -1304,6 +1298,27 @@ interface TraceRow {
   ended_at: string | null;
   data_json: string;
 }
+function summarizeUsage(rows: UsageRow[]): UsageSummary {
+  const summary: UsageSummary = {
+    turns: rows.length,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    costUsd: 0,
+    cacheHitRatio: 0,
+  };
+  for (const row of rows) {
+    summary.inputTokens += row.input_tokens;
+    summary.outputTokens += row.output_tokens;
+    summary.cacheReadTokens += row.cache_read_tokens;
+    summary.cacheWriteTokens += row.cache_write_tokens;
+    summary.costUsd += row.cost_usd;
+  }
+  summary.cacheHitRatio = cacheHitRatio(summary);
+  return summary;
+}
+
 interface UsageRow {
   input_tokens: number;
   output_tokens: number;
