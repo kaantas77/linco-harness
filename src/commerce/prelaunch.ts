@@ -38,6 +38,10 @@ export interface CommerceDecision {
  * immediately before any account mutation, not only at planning time.
  */
 export function authorizeCommerceAction(ctx: CommerceAuthorization): CommerceDecision {
+  if (ctx.stage !== "prelaunch" && ctx.stage !== "live") {
+    return { allowed: false, reason: "INVALID_STAGE: explicit prelaunch or live stage required." };
+  }
+
   if (ctx.stage === "prelaunch") {
     return SAFE_PRELAUNCH_ACTIONS.has(ctx.action)
       ? { allowed: true, reason: "Prelaunch research or draft; no external money/customer mutation authorized." }
