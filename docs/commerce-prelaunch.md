@@ -8,7 +8,7 @@
 | Mağaza | Shopify | Tema, menü, ürünleri draft olarak hazırlama |
 | Tedarik/sipariş | AutoDS veya CJ + gerçek tedarikçi doğrulaması | Teslimat ve iade araştırması, en fazla sandbox |
 | İç otomasyon | Shopify Flow (Basic planında HTTP Request action yok) | Sipariş/risk/etiket akışlarını tasarlama |
-| Reklam | Meta Business + Ads Manager | Hesap ve Pixel/CAPI hazırlığı, taslak kreatif |
+| Reklam | Meta Business + Ads Manager | Meta hesabını ve taslak kreatifleri hazırla. Shopify-Meta satış kanalı mağazanın açık olmasını gerektirebilir; bağlamayı lansmana bırak |
 | Destek | Chatwoot + resmî WhatsApp Business Platform | Onaylı ürün-politika SSS taslakları |
 | Yönetim | Linco Harness | Ajan skill ve `src/commerce/prelaunch.ts` emniyet kapısı |
 
